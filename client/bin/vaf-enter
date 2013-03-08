@@ -79,6 +79,16 @@ function vafreq() {
   fi
 }
 
+# Wrapper to continuously ask pod-info for the number of workers
+function vafcount() {
+  local NumWorkers=0
+  _vaf_p 'Updating every 5 seconds. Press Ctrl-C to stop monitoring...'
+  while NumWorkers=`pod-info -n` ; do
+    _vaf_p "[`date +%Y%m%d-%H%M%S`] $NumWorkers"
+    sleep 5
+  done
+}
+
 # Loads (sources) the specified configuration file. Usage:
 #   LoadConf [-f] <source_cf>
 #
@@ -220,7 +230,7 @@ function Main() {
   _vaf_p "Entering VAF environment: $VafUserHost"
   _vaf_p 'Remember: you are still in a shell on your local computer!'
   export VafPodRemoteEnv VafUserHost
-  export -f vafctl vafreq _vaf_p
+  export -f vafctl vafreq vafcount _vaf_p
   exec env PS1="$PS1" bash --norc -i
 
 }
