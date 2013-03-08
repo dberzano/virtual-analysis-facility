@@ -8,20 +8,31 @@
 # interface.
 #
 
+#
+# User configuration variables
+#
+
+# Authentication method
+export VafConf_AuthMethod='pool_users'  # or alice_ldap
+
+# Number of pool accounts to create (effective with 'pool_users' only)
+export VafConf_NumPoolAccounts=100
+
+#
+# System configuration variables
+#
+
 # The log file
 export LogFile='/amicontext.log'
 
 # Directory containing Python amiconfig plugins
 export AmiconfigPlugins="/usr/lib/python2.4/site-packages/amiconfig/plugins"
 
-# Number of pool accounts to create
-export NumPoolAccounts=100
-
 # Use proper locale
 export LANG=C
 
-# Will be set by proper function
-export HostName='santocielo'
+# Will be set by an appropriate function
+export HostName
 export Ip
 
 # Colors
@@ -30,6 +41,10 @@ ColRed="\e[31m"
 ColGreen="\e[32m"
 ColBlue="\e[34m"
 ColMagenta="\e[35m"
+
+#
+# Functions
+#
 
 # Wraps a given command and shows the output only if an error occurs (signalled
 # by a nonzero return value). Output is colored
@@ -100,6 +115,17 @@ function Exec() {
   return $RetVal
 }
 
+# Set current host and IP as seen from the outside
+function GetPublicIpHost() {
+  Ip=`curl -sL http://api.exip.org/?call=ip`
+  local IpHost=`getent hosts $Ip`
+  HostName=${IpHost##* }
+  if [ "$HostName" == '' ] ; then
+    HostName=`hostname -f`
+    [ "$HostName" == '' ] && HostName="$Ip"
+  fi
+}
+
 # LDAP configuration for ALICE users
 function ConfigAliceUsers() {
 
@@ -137,11 +163,11 @@ _EOF_
   service nscd reload
 }
 
-# Create pool accounts
+# Configure the system to use pool accounts
 function ConfigPoolAccounts() {
   local I
   groupadd -g 50000 pool
-  for ((I=1; I<=NumPoolAccounts; I++)) ; do
+  for ((I=1; I<=VafConf_NumPoolAccounts; I++)) ; do
     adduser `printf pool%03u $I` -s /bin/bash -u $((50000+I)) -g 50000
   done
   # Disable LDAP authentication
@@ -156,18 +182,6 @@ function ConfigAliceCvmfs() {
   cat > /etc/cvmfs/config.d/alice.cern.ch.local <<_EOF_
 CVMFS_SERVER_URL=http://cernvm-devwebfs.cern.ch/cvmfs/alice.cern.ch
 _EOF_
-}
-
-# Enables resolution of .local domain names
-function ConfigResolvLocal() {
-  sed -i /etc/nsswitch.conf -e \
-    's#^hosts:.*$#hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4#g'
-
-  # BUG: avahi-daemon is not restarted after setting hostname, so we must do it
-  # here!
-  service avahi-daemon restart
-  service nscd restart
-  service nscd reload
 }
 
 # Installs Conary common packages
@@ -254,15 +268,6 @@ function ConfigPod() {
 alias pod-setup='source $PodPrefix/PoD_env.sh'
 _EOF_
 
-#  cat > "$PodPathBase".sh <<_EOF_
-##export PATH="$PodPrefix/bin:\$PATH"
-#_EOF_
-
-  # PoD env is not compatible with csh
-#  cat > "$PodPathBase".csh <<_EOF_
-#setenv PATH "$PodPrefix/bin:\$PATH"
-#_EOF_
-
   # Create package directories
   ( source $PodPrefix/PoD_env.sh && pod-server start ) || true
 
@@ -305,7 +310,7 @@ function ConfigSshcertauth() {
 \$mapFile = '$MapFile';
 \$mapValiditySecs = 172800;
 \$mapIdLow = 1;
-\$mapIdHi  = $NumPoolAccounts;
+\$mapIdHi = $VafConf_NumPoolAccounts;
 \$mapUserFormat = 'pool%03u';
 ?>
 _EOF_
@@ -396,44 +401,6 @@ _EOF_
 
 }
 
-# Only for tests
-function ConfigTest() {
-
-  # Force home creation
-  su dberzano -c exit
-
-  cat > ~dberzano/hello.submit <<_EOF_
-Universe       = vanilla
-Executable     = hello.sh 
-
-input   = /dev/null
-output  = hello.out                
-error   = hello.error       
-                                                  
-Queue
-_EOF_
-
-  cat > ~dberzano/hello.sh <<_EOF_
-#!/bin/bash
-env
-echo Hello \`whoami\` \`hostname -f\`
-_EOF_
-  chmod +x ~dberzano/hello.sh
-  chown dberzano ~dberzano/*
-
-}
-
-# Set current host and IP as seen from the outside
-function GetPublicIpHost() {
-  Ip=`curl -sL http://api.exip.org/?call=ip`
-  local IpHost=`getent hosts $Ip`
-  HostName=${IpHost##* }
-  if [ "$HostName" == '' ] ; then
-    HostName=`hostname -f`
-    [ "$HostName" == '' ] && HostName="$Ip"
-  fi
-}
-
 # List of actions to perform
 function Actions() {
 
@@ -443,18 +410,22 @@ function Actions() {
   Exec 'Getting public IP and FQDN' GetPublicIpHost
   Exec 'What is my environment?' -v env
 
-  #Exec 'Configuring LDAP for ALICE users' ConfigAliceUsers
-  Exec 'Adding pool accounts' ConfigPoolAccounts
+  case "$VafConf_AuthMethod" in
+    alice_ldap)
+      Exec 'Configuring LDAP for ALICE users' ConfigAliceUsers
+    ;;
+    pool_users)
+      Exec 'Adding pool accounts' ConfigPoolAccounts
+    ;;
+  esac
 
   Exec 'Configuring CernVM-FS for ALICE software' ConfigAliceCvmfs
-  #Exec 'Enabling .local domains resolution' -v ConfigResolvLocal
   Exec 'Installing Conary common packages' ConfigInstallConaryCommon
 
   if [ $Master == 1 ] ; then
     Exec 'Installing Conary packages for master' ConfigInstallConaryMaster
     Exec 'Installing PROOF on Demand' ConfigPod
-    Exec 'Configuring sshcertauth' ConfigSshcertauth pool_users
-    #Exec 'Preparing test environment' ConfigTest
+    Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
   fi
 
   Exec 'Hotfixing Condor plugin' ConfigHotfixCondor
