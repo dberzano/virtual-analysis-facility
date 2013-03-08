@@ -223,58 +223,6 @@ function ConfigHotfixCondor() {
 
 }
 
-# This script downloads, unpacks, compiles and configures PROOF on Demand. It is
-# temporary until we distribute it on cvmfs
-function ConfigPod() {
-
-  local PodUrl='http://pod.gsi.de/releases/pod/3.12/PoD-3.12-Source.tar.gz'
-  local PodWorkDir=`mktemp -d`
-  local PodPrefix='/opt/pod'
-  local BoostRoot='/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2'
-  BoostRoot="$BoostRoot/Packages/boost/v1_51_0"
-  local PodLdconfig='/etc/ld.so.conf.d/pod.conf'
-  local PodPathBase='/etc/profile.d/pod'
-
-  if [ -x "$PodPrefix"/bin/pod-submit ] ; then
-    echo 'PoD already installed, skipping'
-    return 0
-  fi
-
-  local Ret
-
-  (
-    cd "$PodWorkDir" && \
-    wget "$PodUrl" && \
-    tar xzf *.tar.gz && \
-    cd `ls -1d */ | head -n1` && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX="$PodPrefix" -DBOOST_ROOT="$BoostRoot" && \
-    make install -j`cat /proc/cpuinfo|grep -c bogomips`
-  )
-  Ret=$?
-
-  rm -rf "$PodWorkDir"  # cleanup
-
-  [ "$Ret" != 0 ] && return 1
-
-  # Configure library paths system-wide
-  echo "$BoostRoot/lib" > "$PodLdconfig"
-  #echo "$PodPrefix/lib" >> "$PodLdconfig"  # not needed in principle
-  ldconfig
-
-  # Configure paths for bash and csh, system-wide
-  cat > "$PodPathBase".sh <<_EOF_
-alias pod-setup='source $PodPrefix/PoD_env.sh'
-_EOF_
-
-  # Create package directories
-  ( source $PodPrefix/PoD_env.sh && pod-server start ) || true
-
-  return 0
-
-}
-
 # Configures and installs sshcertauth from here[1]. The only parameter decides
 # the authentication method (currently: alice_ldap or pool_users)
 #
@@ -424,7 +372,6 @@ function Actions() {
 
   if [ $Master == 1 ] ; then
     Exec 'Installing Conary packages for master' ConfigInstallConaryMaster
-    Exec 'Installing PROOF on Demand' ConfigPod
     Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
   fi
 
