@@ -1,0 +1,23 @@
+#!/bin/bash
+
+#
+# alice/common.before -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Part of virtual-analysis-facility.
+#
+# Sample user configuration file for using VAF in ALICE. This script will be
+# sourced both locally and on the remote machine.
+#
+
+# AliEn username
+export alien_API_USER='dberzano'
+
+# The desired AliRoot version (all dependencies are automatically set)
+export VafAliRootVersion='v5-04-31LF-AN-1'
+
+# Set to 1 to use software from CernVM-FS locally
+export UseCvmfsLocally=0
+
+# Environment variables (used only in case UseCvmfsLocally=0)
+export AliceEnv="$HOME/Devel/Alice/ali-inst/alice-env.sh"
+export VafConf_LocalPodLocation="$HOME/Devel/Alice/pod"
