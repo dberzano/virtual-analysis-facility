@@ -254,7 +254,7 @@ function ConfigSshcertauth() {
 \$maxValiditySecs = 3600;
 \$pluginUser = '$AuthPlugin';
 \$opensslBin = 'openssl';
-\$suggestedCmd = 'vaf-enter-env.sh <USER>@<HOST>';
+\$suggestedCmd = 'vaf-enter <USER>@<HOST>';
 \$mapFile = '$MapFile';
 \$mapValiditySecs = 172800;
 \$mapIdLow = 1;
