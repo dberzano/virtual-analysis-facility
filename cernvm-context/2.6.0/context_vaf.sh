@@ -353,7 +353,15 @@ _EOF_
 function Actions() {
 
   local Master=0
-  echo "$CTX__VM_CONTEXT_NAME" | grep -iq master && Master=1
+
+  if [ "$VafConf_NodeType" == 'master' ] ; then
+    Master=1
+  elif [ "$VafConf_NodeType" == 'slave' ] ; then
+    Master=0
+  else
+    # Auto discovery. Works with CernVM Online only...
+    echo "$CTX__VM_CONTEXT_NAME" | grep -iq master && Master=1
+  fi
 
   Exec 'Getting public IP and FQDN' GetPublicIpHost
   Exec 'What is my environment?' -v env
