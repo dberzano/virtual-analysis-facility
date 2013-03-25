@@ -7,16 +7,12 @@
 # This script is to be cut & pasted to the script part in the CernVM Online web
 # interface.
 #
-
+# Configuration variables need to be set externally. They are:
 #
-# User configuration variables
+#   VafConf_AuthMethod
+#   VafConf_NodeType
+#   VafConf_NumPoolAccounts
 #
-
-# Authentication method
-export VafConf_AuthMethod='pool_users'  # or alice_ldap
-
-# Number of pool accounts to create (effective with 'pool_users' only)
-export VafConf_NumPoolAccounts=100
 
 #
 # System configuration variables
