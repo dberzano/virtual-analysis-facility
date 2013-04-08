@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# vaf-enter-env.sh -- by Dario Berzano <dario.berzano@cern.ch>
+# vaf-enter -- by Dario Berzano <dario.berzano@cern.ch>
 #
 # Part of virtual-analysis-facility.
 #
@@ -12,29 +12,39 @@
 #
 # LOCAL ENVIRONMENT
 #
-#   ~/.vaf/common.before
-#   ~/.vaf/local.before
-#   ~/.vaf/local.conf
+#   common.before
+#   local.before
+#   local.conf
 #   <PoD environment from $VafConf_LocalPodLocation/PoD_env.sh>
-#   ~/.vaf/common.after
-#   ~/.vaf/local.after
+#   common.after
+#   local.after
 #
 # PAYLOAD PREPARATION
 #   The script is executed (not sourced!) locally (with VAF environment set) and
-#   its stdout output will be prepended to the remote environment
+#   its stdout output will be prepended to the remote environment. As a matter
+#   of fact it can be any executable, not just a script:
 #
-#   ~/.vaf/payload.sh
+#   payload
 #
 # REMOTE ENVIRONMENT
 #
-#   <output of ~/.vaf/payload.sh>
-#   ~/.vaf/common.before
-#   ~/.vaf/remote.before
-#   ~/.vaf/remote.conf
-#   ~/.vaf/common.after
-#   ~/.vaf/remote.after
+#   <output of payload>
+#   common.before
+#   remote.before
+#   remote.conf
+#   common.after
+#   remote.after
 #
-# Scripts are executed only if they exist.
+# All scripts are considered only if they exist. Scripts are searched for in the
+# following paths, in order:
+#
+#   <dir of this script>/../etc
+#   ~/.vaf
+#
+# System-wide scripts have precedence over user's (~/.vaf) scripts.
+#
+# The PoD_env.sh exists if PoD is correctly installed. A failure in loading PoD
+# environment is fatal.
 #
 
 #
@@ -119,6 +129,15 @@ function AppendConf() {
   HandleConf "$@" append
 }
 
+# Appends the output of an executable to a configuration file. Usage:
+#   AppendOutputConf [-f] <executable> <dest_cf>
+#
+# -f rises an error also when file is not found. Returns 0 on success, nonzero
+# on error
+function AppendOutputConf() {
+  HandleConf "$@" append-output
+}
+
 # Handles (appends/loads) a configuration file by raising errors if requested
 # and printing out debug information. Used by AppendConf and LoadConf
 function HandleConf() {
@@ -178,6 +197,12 @@ function HandleConf() {
         cat "$Cf" >> "$Out"
         echo '' >> "$Out"
       ;;
+      append-output)
+        _vaf_dp " * Adding output"
+        echo -e "\n### Output of $Cf ###\n" >> "$Out"
+        "$Cf" >> "$Out"
+        echo '' >> "$Out"
+      ;;
     esac
 
   else
@@ -230,7 +255,6 @@ function Main() {
   local ConfLocalPre=( 'common.before' 'local.before' 'local.conf' )
   for Cf in ${ConfLocalPre[@]} ; do
     LoadConf "$Cf" || exit $ErrLocalCf
-    #LoadConf "$ConfPrefix/$Cf" || exit $ErrLocalCf
   done
 
   # Load PoD environment
@@ -239,20 +263,15 @@ function Main() {
   # After PoD
   local ConfLocalPost=( 'common.after' 'local.after' )
   for Cf in ${ConfLocalPre[@]} ; do
-    LoadConf "$ConfPrefix/$Cf" || exit $ErrLocalCf
+    LoadConf "$Cf" || exit $ErrLocalCf
   done
 
   # Prepare script for remote environment, including payload
   local VafPodRemoteEnv="/tmp/vaf_pod_remote_env_u$UID"
   echo -n '' > "$VafPodRemoteEnv"
 
-  # Executing payload preparation script (must be executable)
-  local Payload="$ConfPrefix/payload"
-  [ "$Debug" == 1 ] && _vaf_p "Looking for payload executable: $Payload"
-  if [ -x "$Payload" ] ; then
-    echo -e "### payload ###\n" >> "$VafPodRemoteEnv"
-    "$Payload" >> "$VafPodRemoteEnv"
-  fi
+  # Appending output of payload script (must be executable)
+  AppendOutputConf 'payload' "$VafPodRemoteEnv"
 
   # Append other configuration scripts (will be sourced remotely and not
   # interpreted locally)
@@ -264,7 +283,7 @@ function Main() {
     'remote.after'
   )
   for Cf in ${ConfRemote[@]} ; do
-    AppendConf "$ConfPrefix/$Cf" "$VafPodRemoteEnv"
+    AppendConf "$Cf" "$VafPodRemoteEnv"
   done
 
   # Enter shell
