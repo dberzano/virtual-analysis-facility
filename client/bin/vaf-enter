@@ -96,7 +96,7 @@ function vafreq() {
     _vaf_p 'Usage: vafreq <n_workers>'
   else
     # pod-prep-worker is there to ensure that job payloads are up to date
-    vafctl --command "pod-prep-worker ; pod-submit -r condor -n $Num"
+    vafctl --command "pod-prep-worker ; pod-submit -r $VafConf_PodRms -n $Num"
   fi
 }
 
@@ -286,10 +286,13 @@ function Main() {
     AppendConf "$Cf" "$VafPodRemoteEnv"
   done
 
+  # Set some defaults
+  [ "$VafConf_PodRms" == '' ] && VafConf_PodRms='condor'
+
   # Enter shell
   _vaf_p "Entering VAF environment: $VafUserHost"
   _vaf_p 'Remember: you are still in a shell on your local computer!'
-  export VafPodRemoteEnv VafUserHost
+  export VafPodRemoteEnv VafUserHost VafConf_PodRms
   export -f vafctl vafreq vafcount _vaf_p _vaf_dp
   exec env PS1="$PS1" bash --norc -i
 
