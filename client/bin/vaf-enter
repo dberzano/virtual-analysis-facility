@@ -41,9 +41,15 @@
 # Variables
 #
 
+# Set to 1 for debug
 export Debug=0
+
+# Exit codes
 export ErrArgs=1
 export ErrLocalCf=2
+
+# Configuration search path (colon-separated)
+export ConfPath=$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
 
 #
 # Functions
@@ -52,6 +58,11 @@ export ErrLocalCf=2
 # Wrapper to printout function
 function _vaf_p() {
   echo -e "\033[1m$1\033[m"
+}
+
+# Printout only when debug is on
+function _vaf_dp() {
+  [ "$Debug" == 1 ] && _vaf_p "$@"
 }
 
 # Wrapper to pod-remote with proper environment
@@ -123,16 +134,46 @@ function HandleConf() {
   local Out="$2"
   local Action="$3"
 
-  [ "$Debug" == 1 ] && _vaf_p "Looking for configuration file: $Cf"
-  if [ -e "$Cf" ] ; then
+  _vaf_dp "Looking for configuration file: $Cf"
+
+  local Found=0
+
+  if [ "${Cf:0:1}" == '/' ] ; then
+    # Absolute path
+    if [ -e "$Cf" ] ; then
+      _vaf_dp " * $Cf: OK"
+      Found=1
+    else
+      _vaf_dp " * $Cf: no"
+    fi
+  else
+    # Relative path: append various search paths with priority
+    local P OldIFS CfO CfP
+    OldIFS="$IFS"
+    IFS=':'
+    for P in $ConfPath ; do
+      CfP="$P/$Cf"
+      if [ -e "$CfP" ] ; then
+        Cf="$CfP"
+        Found=1
+        _vaf_dp " * $CfP: OK"
+        break
+     else
+       _vaf_dp " * $CfP: no"
+      fi
+    done
+    IFS="$OldIFS"
+  fi
+
+  if [ $Found == 1 ] ; then
 
     case "$Action" in
       load)
-        [ "$Debug" == 1 ] && _vaf_p " * Loading"
+        _vaf_dp " * Loading"
         source "$Cf" || Err=1
       ;;
       append)
-        [ "$Debug" == 1 ] && _vaf_p " * Adding"
+        _vaf_dp " * Adding"
         echo -e "\n### $Cf ###\n" >> "$Out"
         cat "$Cf" >> "$Out"
         echo '' >> "$Out"
@@ -140,7 +181,7 @@ function HandleConf() {
     esac
 
   else
-    [ "$Debug" == 1 ] && _vaf_p " * Not found"
+    _vaf_dp " * Not found"
     [ "$MustExist" == 1 ] && Err=1
   fi
 
@@ -173,7 +214,6 @@ function Main() {
   local VafUserHost=${ConnStr%:*}
   [ "$Port" == "$VafUserHost" ] && Port=''
 
-
   # Set prompt for environment shell
   PS1="pod://$VafUserHost"
   [ "$Port" != '' ] && PS1="$PS1:$Port"
@@ -189,7 +229,8 @@ function Main() {
   # Before PoD
   local ConfLocalPre=( 'common.before' 'local.before' 'local.conf' )
   for Cf in ${ConfLocalPre[@]} ; do
-    LoadConf "$ConfPrefix/$Cf" || exit $ErrLocalCf
+    LoadConf "$Cf" || exit $ErrLocalCf
+    #LoadConf "$ConfPrefix/$Cf" || exit $ErrLocalCf
   done
 
   # Load PoD environment
@@ -230,7 +271,7 @@ function Main() {
   _vaf_p "Entering VAF environment: $VafUserHost"
   _vaf_p 'Remember: you are still in a shell on your local computer!'
   export VafPodRemoteEnv VafUserHost
-  export -f vafctl vafreq vafcount _vaf_p
+  export -f vafctl vafreq vafcount _vaf_p _vaf_dp
   exec env PS1="$PS1" bash --norc -i
 
 }
