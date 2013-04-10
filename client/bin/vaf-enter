@@ -94,6 +94,12 @@ function vafreq() {
   let Num+=0
   if [ $Num -le 0 ] ; then
     _vaf_p 'Usage: vafreq <n_workers>'
+  elif ! pod-info -s > /dev/null 2>&1 ; then
+    # Check if pod-server is running
+    _vaf_p 'Cannot contact PoD server. Did you start it?'
+    _vaf_p 'Tip: you can (re)start it with:'
+    _vaf_p '  vafctl --start'
+    return 1
   else
     # pod-prep-worker is there to ensure that job payloads are up to date
     vafctl --command "pod-prep-worker ; pod-submit -r $VafConf_PodRms -n $Num"
@@ -297,5 +303,9 @@ function Main() {
   exec env PS1="$PS1" bash --norc -i
 
 }
+
+#
+# Entry point
+#
 
 Main "$@"
