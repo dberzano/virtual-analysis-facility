@@ -301,7 +301,7 @@ function Main() {
   # Enter shell
   _vaf_p "Entering VAF environment: $VafUserHost"
   _vaf_p 'Remember: you are still in a shell on your local computer!'
-  export VafPodRemoteEnv VafUserHost VafConf_PodRms
+  export VafPodRemoteEnv VafUserHost VafConf_PodRms VafConf_PodQueue
   export -f vafctl vafreq vafcount _vaf_p _vaf_dp
   exec env PS1="$PS1" bash --norc -i
 
