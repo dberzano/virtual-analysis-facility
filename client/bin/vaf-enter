@@ -67,7 +67,12 @@ export ConfPath=$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
 
 # Wrapper to printout function
 function _vaf_p() {
-  echo -e "\033[1m$1\033[m"
+  local N=''
+  if [ "$1" == '-n' ] ; then
+    N='-n'
+    shift
+  fi
+  echo -e $N "\033[1m$1\033[m"
 }
 
 # Printout only when debug is on
@@ -116,6 +121,29 @@ function vafcount() {
   while NumWorkers=`pod-info -n` ; do
     _vaf_p "[`date +%Y%m%d-%H%M%S`] $NumWorkers"
     sleep 5
+  done
+}
+
+# Waits until one or the specified number of workers is available. Returns 0 on
+# success, exits with nonzero if a failure occured
+function vafwait() {
+  local ReqWorkers=$(($1+0))
+  [ "$ReqWorkers" == 0 ] && ReqWorkers=1
+  _vaf_p "Waiting for $ReqWorkers worker(s)"
+  _vaf_p -n '.'
+  while true ; do
+    NumWorkers=`pod-info -n 2> /dev/null`
+    if [ $? != 0 ] ; then
+      _vaf_p 'Cannot obtain number of workers, aborting'
+      return 1
+    elif [ $NumWorkers -ge $ReqWorkers ] ; then
+      _vaf_p 'OK!'
+      _vaf_p "There are $NumWorkers available"
+      return 0
+    else
+      _vaf_p -n '.'
+      sleep 1
+    fi
   done
 }
 
@@ -302,7 +330,7 @@ function Main() {
   _vaf_p "Entering VAF environment: $VafUserHost"
   _vaf_p 'Remember: you are still in a shell on your local computer!'
   export VafPodRemoteEnv VafUserHost VafConf_PodRms VafConf_PodQueue
-  export -f vafctl vafreq vafcount _vaf_p _vaf_dp
+  export -f vafctl vafreq vafcount vafwait _vaf_p _vaf_dp
   exec env PS1="$PS1" bash --norc -i
 
 }
