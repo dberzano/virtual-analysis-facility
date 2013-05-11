@@ -130,7 +130,6 @@ function vafwait() {
   local ReqWorkers=$(($1+0))
   [ "$ReqWorkers" == 0 ] && ReqWorkers=1
   _vaf_p "Waiting for $ReqWorkers worker(s)"
-  _vaf_p -n '.'
   while true ; do
     NumWorkers=`pod-info -n 2> /dev/null`
     if [ $? != 0 ] ; then
@@ -138,7 +137,7 @@ function vafwait() {
       return 1
     elif [ $NumWorkers -ge $ReqWorkers ] ; then
       _vaf_p 'OK!'
-      _vaf_p "There are $NumWorkers available"
+      _vaf_p "There are $NumWorkers worker(s) available"
       return 0
     else
       _vaf_p -n '.'
