@@ -24,6 +24,9 @@ export LogFile='/amicontext.log'
 # Directory containing Python amiconfig plugins
 export AmiconfigPlugins="/usr/lib/python2.4/site-packages/amiconfig/plugins"
 
+# File used to control test deployments
+export DeployBin='/usr/bin/deploy'
+
 # Use proper locale
 export LANG=C
 
@@ -304,7 +307,8 @@ CustomLog logs/ssl_request_log \
 ### Customized for sshcertauth ###
 SSLCertificateFile /etc/grid-security/hostcert.pem
 SSLCertificateKeyFile /etc/grid-security/hostkey.pem
-SSLCACertificatePath /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliEn/v2-19/api/share/certificates/
+#SSLCACertificatePath /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliEn/v2-19/api/share/certificates
+SSLCACertificatePath /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/etc/grid-security/certificates
 SSLVerifyDepth 10
 <Directory /var/www/html/auth>
   SSLVerifyClient require
@@ -322,15 +326,12 @@ _EOF_
 # List of actions to perform
 function Actions() {
 
-  local Master=0
+  local Master
 
   if [ "$VafConf_NodeType" == 'master' ] ; then
     Master=1
-  elif [ "$VafConf_NodeType" == 'slave' ] ; then
-    Master=0
   else
-    # Auto discovery. Works with CernVM Online only...
-    echo "$CTX__VM_CONTEXT_NAME" | grep -iq master && Master=1
+    Master=0
   fi
 
   Exec 'Getting public IP and FQDN' GetPublicIpHost
