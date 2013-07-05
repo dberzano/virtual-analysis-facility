@@ -32,7 +32,8 @@ export LANG=C
 
 # Will be set by an appropriate function
 export HostName
-export Ip
+export PrivIp
+export PubIp
 
 # Colors
 ColReset="\e[m"
@@ -114,15 +115,18 @@ function Exec() {
   return $RetVal
 }
 
-# Set current host and IP as seen from the outside
-function GetPublicIpHost() {
-  Ip=`curl -sL http://api.exip.org/?call=ip`
-  local IpHost=`getent hosts $Ip`
-  HostName=${IpHost##* }
+# Gets IPs and hostname
+function ConfigIpHost() {
+  # External service for Public IP
+  PubIp=`curl -sL http://api.exip.org/?call=ip`
+  local PubIpHost=`getent hosts $PubIp`
+  HostName=${PubIpHost##* }
   if [ "$HostName" == '' ] ; then
     HostName=`hostname -f`
-    [ "$HostName" == '' ] && HostName="$Ip"
+    [ "$HostName" == '' ] && HostName="$PubIp"
   fi
+  # Private IP, from eth0 interface
+  PrivIp=`/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | cut -d' ' -f1`
 }
 
 # LDAP configuration for ALICE users
@@ -323,6 +327,16 @@ _EOF_
 
 }
 
+# Hotfix for HTCondor init script (temporary fix -- will be permanent in CernVM)
+function ConfigHotfixCondor() {
+  local Src='https://dl.dropbox.com/u/19379008/CernVM-VAF/2.7.0/etc-init.d-condor'
+  local Dest='/etc/init.d/condor'
+  chmod -x "$Dest"
+  curl -fsL "$Src" > "$Dest" || return 1
+  chmod +x "$Dest"
+  return 0
+}
+
 # List of actions to perform
 function Actions() {
 
@@ -334,8 +348,10 @@ function Actions() {
     Master=0
   fi
 
-  Exec 'Getting public IP and FQDN' GetPublicIpHost
+  Exec 'Getting public IP and FQDN' ConfigIpHost
   Exec 'What is my environment?' -v env
+
+  Exec 'Hotfixing HTCondor init script' ConfigHotfixCondor
 
   case "$VafConf_AuthMethod" in
     alice_ldap)
@@ -353,6 +369,7 @@ function Actions() {
     Exec 'Installing Conary packages for master' ConfigInstallConaryMaster
     Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
   fi
+
 }
 
 # The main function
