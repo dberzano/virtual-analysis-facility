@@ -177,16 +177,6 @@ function ConfigPoolAccounts() {
   sed -i /etc/nsswitch.conf -e 's#^passwd:.*$#passwd: files#g'
 }
 
-# Configures CernVM-FS for ALICE: currently no official ALICE repository exists
-# so we should use a temporary one. Please note that the rest of CernVM-FS
-# configuration is handled in a separate CernVM-Online plugin
-function ConfigAliceCvmfs() {
-  # Special cmvfs repository (temporary)
-  cat > /etc/cvmfs/config.d/alice.cern.ch.local <<_EOF_
-CVMFS_SERVER_URL=http://cernvm-devwebfs.cern.ch/cvmfs/alice.cern.ch
-_EOF_
-}
-
 # Installs Conary common packages
 function ConfigInstallConaryCommon() {
   conary erase vim-minimal
