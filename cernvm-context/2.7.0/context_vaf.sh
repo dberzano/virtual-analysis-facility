@@ -352,7 +352,6 @@ function Actions() {
     ;;
   esac
 
-  Exec 'Configuring CernVM-FS for ALICE software' ConfigAliceCvmfs
   Exec 'Installing Conary common packages' ConfigInstallConaryCommon
 
   if [ $Master == 1 ] ; then
