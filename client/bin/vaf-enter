@@ -298,7 +298,7 @@ function Main() {
 
   # After PoD
   local ConfLocalPost=( 'common.after' 'local.after' )
-  for Cf in ${ConfLocalPre[@]} ; do
+  for Cf in ${ConfLocalPost[@]} ; do
     LoadConf "$Cf" || exit $ErrLocalCf
   done
 
