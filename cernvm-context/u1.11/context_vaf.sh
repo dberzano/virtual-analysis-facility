@@ -144,6 +144,9 @@ function ConfigAliceUsers() {
   # Install sssd package
   yum install -y sssd || return 1
 
+  # Create proper "alice" group (can't override GID for the moment)
+  groupadd -g 1395 alice > /dev/null 2>&1
+
   # Enable lots of things: notably, sssd and automatic homedir creation
   authconfig --enablesssd --enablesssdauth \
     --enablelocauthorize --enablemkhomedir --update || return 1
@@ -158,6 +161,8 @@ domains = default
 [nss]
 filter_users = root,ldap,named,avahi,haldaemon,dbus,radiusd,news,nscd
 override_shell = /bin/bash
+override_homedir = /home/%u
+#override_gid = 99
 
 [pam]
 
