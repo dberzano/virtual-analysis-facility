@@ -238,6 +238,9 @@ function ConfigSshcertauth() {
   local MapFile="/etc/sshcertauth-x509-map"
   #local HttpsAuthConf="/etc/httpd/conf.d/ssl-sshcertauth.conf"
 
+  # Install php-ldap package
+  yum install -y php-ldap || return 1
+
   rm -rf "$Dest"
   mkdir -p "$Dest"
   curl -sLo "$Arch" "$Url" && \
