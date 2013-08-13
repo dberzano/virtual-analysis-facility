@@ -60,33 +60,36 @@ class AMIConfigPlugin(AMIPlugin):
 
         output.append('# Generated using a patched Condor plugin')
 
+        #
+        # We are now getting the assigned hostname (i.e., what this host thinks
+        # its name is), the real hostname (the FQDN) and the IP address (the
+        # one from which outbound connections are generated).
+        #
+        # This heuristics is needed to work around mismatches in the assigned
+        # and real hostnames.
+        #
+
+        # Configured hostname
+        assigned_hostname = socket.gethostname()
+
+        # IP address used for outbound connections. Using a dummy UDP
+        # IPv4 socket to a known IP (not opening any actual connection)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect( ('8.8.8.8', 53) )
+        real_ip = s.getsockname()[0]
+        s.close()
+
+        # Hostname obtained through reverse lookup from the IP
+        #real_hostname = socket.gethostbyaddr(real_ip)[0]
+        real_hostname = socket.getfqdn()
+
         condor_master = ""
         if 'condor_master' in cfg:
             # We are on a worker
             condor_master = cfg['condor_master']
             output.append('DAEMON_LIST = MASTER, STARTD')
         else:
-
-            #
-            # We are on the Condor Master.
-            #
-            # We now try to figure out whether to use the FQDN or the IP
-            # address using some heuristics.
-            #
-
-            # Configured hostname
-            assigned_hostname = socket.gethostname()
-
-            # IP address used for outbound connections. Using a dummy UDP
-            # IPv4 socket to a known IP (not opening any actual connection)
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect( ('8.8.8.8', 53) )
-            real_ip = s.getsockname()[0]
-            s.close()
-
-            # Hostname obtained through reverse lookup from the IP
-            #real_hostname = socket.gethostbyaddr(real_ip)[0]
-            real_hostname = socket.getfqdn()
+            # We are on the Condor Master
 
             # If there's a mismatch between "real" and "assigned" hostname, use
             # the IP address
@@ -95,11 +98,11 @@ class AMIConfigPlugin(AMIPlugin):
             else:
                 condor_master = real_ip
 
-            condor_domain = real_hostname.partition('.')[2]
-            if condor_domain == '':
-                condor_domain = '*'
-
             output.append('DAEMON_LIST = COLLECTOR, MASTER, NEGOTIATOR, SCHEDD')
+
+        condor_domain = real_hostname.partition('.')[2]
+        if condor_domain == '':
+            condor_domain = '*'
 
         output.append("CONDOR_HOST = %s" % (condor_master))
         if 'condor_admin' in cfg:
