@@ -157,6 +157,7 @@ domains = default
 
 [nss]
 filter_users = root,ldap,named,avahi,haldaemon,dbus,radiusd,news,nscd
+override_shell = /bin/bash
 
 [pam]
 
