@@ -332,7 +332,7 @@ function HandleConf() {
 function Main() {
 
   # Debug?
-  [ "$VafDebug" != '0' ] && VafDebug=1
+  [ "$VafDebug" != '0' ] && [ "$VafDebug" != '' ] && VafDebug=1
 
   # Parse [user@]host[:port] string
   if [ "$1" == '' ] ; then
