@@ -52,7 +52,7 @@
 #
 
 # Set to 1 for debug
-export Debug=0
+export VafDebug
 
 # Exit codes
 export ErrArgs=1
@@ -78,7 +78,7 @@ function _vaf_p() {
 
 # Printout only when debug is on
 function _vaf_dp() {
-  [ "$Debug" == 1 ] && _vaf_p "$@"
+  [ "$VafDebug" == 1 ] && _vaf_p "$@"
 }
 
 # Unprotects private key if necessary, then adds proper configuration lines
@@ -330,6 +330,9 @@ function HandleConf() {
 
 # The main function
 function Main() {
+
+  # Debug?
+  [ "$VafDebug" != '0' ] && VafDebug=1
 
   # Parse [user@]host[:port] string
   if [ "$1" == '' ] ; then
