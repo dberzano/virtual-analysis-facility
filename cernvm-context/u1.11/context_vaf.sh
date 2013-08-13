@@ -292,10 +292,11 @@ _EOF_
   echo "Defaults!$Dest/keys_keeper.sh !requiretty" >> /etc/sudoers
   echo "apache ALL=(ALL) NOPASSWD: $Dest/keys_keeper.sh" >> /etc/sudoers
 
-  # Generate certificates on the fly [TODO]
+  # Generate certificates on the fly. Not the best option: there should be a
+  # way of providing a certificate yourself
   mkdir /etc/grid-security
   openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 \
-    -subj "/CN=$HostName" \
+    -subj "/CN=$PrivIp" \
     -keyout /etc/grid-security/hostkey.pem \
     -out /etc/grid-security/hostcert.pem
   chmod 0400 /etc/grid-security/hostkey.pem
