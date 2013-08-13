@@ -120,7 +120,7 @@ function ConfigIpHost() {
     HostName=`hostname -f`
     [ "$HostName" == '' ] && HostName="$PubIp"
   fi
-  # Private IP, from eth0 interfac  e
+  # Private IP, from eth0 interface
   PrivIp=`/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | cut -d' ' -f1`
 }
 
@@ -221,12 +221,6 @@ function ConfigPoolAccounts() {
   service sssd stop || true
 }
 
-# Installs Conary packages needed on master only
-function ConfigInstallConaryMaster() {
-  conary install httpd mod_ssl php php-ldap
-  true
-}
-
 # Configures and installs sshcertauth from here[1]. The only parameter decides
 # the authentication method (currently: alice_ldap or pool_users)
 #
@@ -309,12 +303,12 @@ _EOF_
 LoadModule ssl_module modules/mod_ssl.so
 Listen 443
 AddType application/x-x509-ca-cert .crt
-AddType application/x-pkcs7-crl    .crl
-SSLPassPhraseDialog  builtin
-SSLSessionCache         shmcb:/var/cache/mod_ssl/scache(512000)
-SSLSessionCacheTimeout  300
+AddType application/x-pkcs7-crl .crl
+SSLPassPhraseDialog builtin
+SSLSessionCache shmcb:/var/cache/mod_ssl/scache(512000)
+SSLSessionCacheTimeout 300
 SSLMutex default
-SSLRandomSeed startup file:/dev/urandom  256
+SSLRandomSeed startup file:/dev/urandom 256
 SSLRandomSeed connect builtin
 SSLCryptoDevice builtin
 <VirtualHost _default_:443>
