@@ -151,6 +151,9 @@ Host $VafHost
 $EndMarker
 _EoF_
 
+  # Proper permissions
+  chmod 0600 "$SshConfig"
+
   return 0
 }
 
