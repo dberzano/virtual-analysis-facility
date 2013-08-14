@@ -258,8 +258,11 @@ Main() {
   # Assert amiconfig executable
   [ -f $AMICONFIG ] && [ -x $AMICONFIG ] || exit 1
 
-  # Ugly workaround
-  which nc > /dev/null 2>&1 || conary install nc > /dev/null 2>&1
+  # Ugly workaround: install netcat if not there
+  which conary > /dev/null 2>&1
+  if [ $? == 0 ] ; then
+    which nc > /dev/null 2>&1 || conary install nc > /dev/null 2>&1
+  fi
 
   # Retrieve user-data. After calling this function, in case of success, we
   # have a consistent environment:
