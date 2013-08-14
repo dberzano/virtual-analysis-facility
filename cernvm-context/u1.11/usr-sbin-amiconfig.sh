@@ -52,7 +52,7 @@ RetrieveUserDataEC2() {
   # EC2 metadata server versions
   EC2_API_VERSIONS="2007-12-15"
   SERVER="169.254.169.254"
-  DEFAULT_URL="http://$SERVER/$(echo $EC2_API_VERSIONS|awk '{ print 1 }')/"
+  DEFAULT_URL="http://$SERVER/$(echo $EC2_API_VERSIONS|awk '{ print $1 }')/"
 
   # Local checks
   for VERSION in $EC2_API_VERSIONS ; do
