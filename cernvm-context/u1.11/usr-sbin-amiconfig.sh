@@ -4,10 +4,13 @@ AMICONFIG="/usr/sbin/amiconfig"
 AMILOCK="/var/lock/subsys/amiconfig"
 AMISETUP="/etc/sysconfig/amiconfig"
 
-#LOGGER="echo :: "
-#PIPELOGGER="cat"
-LOGGER="logger -t amiconfig.sh"
-PIPELOGGER="logger -t amiconfig.sh"
+if [ "$AMILOGECHO" != '' ] && [ "$AMILOGECHO" != '0' ] ; then
+  LOGGER="echo :: "
+  PIPELOGGER="cat"
+else
+  LOGGER="logger -t amiconfig.sh"
+  PIPELOGGER="logger -t amiconfig.sh"
+fi
 
 # Retrieval of user-data
 RetrieveUserData() {
@@ -209,7 +212,7 @@ Main() {
 
   [ -f $AMISETUP ] && source $AMISETUP
   export AMICONFIG_CONTEXT_URL
-  RetrieveUserData
+  RetrieveUserData || exit 1
 
   case $1 in
     user)
