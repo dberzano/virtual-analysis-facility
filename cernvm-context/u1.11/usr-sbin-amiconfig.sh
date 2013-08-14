@@ -12,9 +12,10 @@ else
   PIPELOGGER="logger -t amiconfig.sh"
 fi
 
-#############################################################################
+# Retrieves user-data and uncompresses it. Returns 0 on success (in such case,
+# environment and files are in place), 1 on failure. If user-data is compressed,
+# uncompresses it
 RetrieveUserData() {
-#############################################################################
 
   if [ "x$AMICONFIG_CONTEXT_URL" != "x" ] ; then
     $LOGGER "Won't check for new URLs: found: $AMICONFIG_CONTEXT_URL"
@@ -44,12 +45,10 @@ RetrieveUserData() {
 
 }
 
-#############################################################################
 # Trying to contact the EC2 metadata server. Returns 0 on success, 1 on
-# failure. If data has been found, it can be found as local file
-#############################################################################
+# failure. The user-data is saved locally
 RetrieveUserDataEC2() {
-#############################################################################
+
   # EC2 metadata server versions
   EC2_API_VERSIONS="2007-12-15"
   SERVER="169.254.169.254"
@@ -137,11 +136,9 @@ RetrieveUserDataEC2() {
 
 }
 
-#############################################################################
-# Trying to retrieve user data from CloudStack
-#############################################################################
+# Trying to retrieve user data from CloudStack. The user-data is saved locally.
+# Returns 0 on success, 1 on failure
 RetrieveUserDataCloudStack() {
-#############################################################################
 
   if [ ! -d /var/lib/dhclient ] ; then
     $LOGGER "CloudStack: can't find dhclient leases"
@@ -200,11 +197,9 @@ RetrieveUserDataCloudStack() {
   return 1
 }
 
-#############################################################################
-# Runs the initial shell script contained in user-data
-#############################################################################
+# Runs the initial shell script contained in user-data, if found. Returns 0 on
+# success, 1 on failure. Return value of script is printed in log
 RunUserDataScript() {
-#############################################################################
 
   # No download invloved here. Use local version
   $LOGGER "Using local copy of $AMICONFIG_CONTEXT_URL: found in $AMICONFIG_LOCAL_USER_DATA"
@@ -257,9 +252,8 @@ RunUserDataScript() {
   return 0
 }
 
-#############################################################################
+# The main function
 Main() {
-#############################################################################
 
   # Assert amiconfig executable
   [ -f $AMICONFIG ] && [ -x $AMICONFIG ] || exit 1
