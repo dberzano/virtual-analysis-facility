@@ -4,6 +4,12 @@ AMICONFIG="/usr/sbin/amiconfig"
 AMILOCK="/var/lock/subsys/amiconfig"
 AMISETUP="/etc/sysconfig/amiconfig"
 
+# Maximum number of retries when attempting to retrieve user-data
+AMI_DOWNLOAD_RETRIES=2
+
+# Timeout, in seconds, to retrieve user-data
+AMI_DOWNLOAD_TIMEOUT_S=20
+
 if [ "$AMILOGECHO" != '' ] && [ "$AMILOGECHO" != '0' ] ; then
   LOGGER="echo :: "
   PIPELOGGER="cat"
@@ -106,7 +112,7 @@ RetrieveUserDataEC2() {
 
       LOCAL_USER_DATA="/var/lib/amiconfig/$VERSION/"
       REMOTE_USER_DATA="http://$SERVER/$VERSION/"
-      DATA=$(wget -t2 -T10 -q -O - $REMOTE_USER_DATA/user-data)
+      DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
       if [ $? == 0 ] ; then
         $LOGGER "EC2: user-data downloaded from $REMOTE_USER_DATA and written locally"
 
@@ -164,7 +170,7 @@ RetrieveUserDataCloudStack() {
           # Try to perform an HTTP get request
           LOCAL_USER_DATA="/var/lib/amiconfig/latest/"
           REMOTE_USER_DATA="http://$SERVER/latest/"
-          DATA=$(wget -t2 -T10 -q -O - $REMOTE_USER_DATA/user-data)
+          DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
           if [ $? == 0 ] && [! -z "$DATA" ] ; then
 
             # Successful, update amiconfig
@@ -257,12 +263,6 @@ Main() {
 
   # Assert amiconfig executable
   [ -f $AMICONFIG ] && [ -x $AMICONFIG ] || exit 1
-
-  # Ugly workaround: install netcat if not there
-  which conary > /dev/null 2>&1
-  if [ $? == 0 ] ; then
-    which nc > /dev/null 2>&1 || conary install nc > /dev/null 2>&1
-  fi
 
   # Retrieve user-data. After calling this function, in case of success, we
   # have a consistent environment:
