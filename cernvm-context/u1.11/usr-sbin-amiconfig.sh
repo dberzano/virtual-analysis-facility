@@ -53,6 +53,11 @@ RetrieveUserData() {
         fi
 
       fi
+
+      # Remove double slashes (except in front of protocol specification, e.g. http://)
+      export AMICONFIG_CONTEXT_URL=$(echo "$AMICONFIG_CONTEXT_URL" | sed -e 's#\([^:]\)/\+#\1/#g')
+      export AMICONFIG_LOCAL_USER_DATA=$(echo "$AMICONFIG_LOCAL_USER_DATA" | sed -e 's#/\+#/#g')
+
     fi
 
   else
