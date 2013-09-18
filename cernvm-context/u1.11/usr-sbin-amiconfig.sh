@@ -23,8 +23,38 @@ fi
 # uncompresses it
 RetrieveUserData() {
 
-  if [ "x$AMICONFIG_CONTEXT_URL" != "x" ] ; then
-    $LOGGER "Won't check for new URLs: found: $AMICONFIG_CONTEXT_URL"
+  if [ "$AMICONFIG_CONTEXT_URL" != '' ] ; then
+    # If context URL is found, it's from the environment. We must fill manually
+    # the "local copy", where applicable
+    $LOGGER "Won't check for new URLs: found from environment: $AMICONFIG_CONTEXT_URL"
+
+    if [ "$AMICONFIG_LOCAL_USER_DATA" == '' ] ; then
+      if [ ${AMICONFIG_CONTEXT_URL:0:5} == 'file:' ] ; then
+
+        # Set local user data by stripping file
+        export AMICONFIG_LOCAL_USER_DATA="${AMICONFIG_CONTEXT_URL:5}/user-data"
+
+      elif [ ${AMICONFIG_CONTEXT_URL:0:1} == '/' ] ; then
+
+        # Just append user-data
+        export AMICONFIG_LOCAL_USER_DATA="${AMICONFIG_CONTEXT_URL}/user-data"
+
+      else
+
+        # Attempt to retrieve from the given URL
+        LOCAL_USER_DATA="/var/lib/amiconfig/custom/"
+        mkdir -p "$LOCAL_USER_DATA"
+        wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O $LOCAL_USER_DATA/user-data $AMICONFIG_CONTEXT_URL/user-data 2> /dev/null
+        if [ $? == 0 ] ; then
+          $LOGGER "Data from environment URL $AMICONFIG_CONTEXT_URL saved to $LOCAL_USER_DATA"
+          export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}/user-data"
+        else
+          $LOGGER "Can't retrieve data from environment URL $AMICONFIG_CONTEXT_URL: trying to proceed anyway"
+        fi
+
+      fi
+    fi
+
   else
     RetrieveUserDataEC2 || RetrieveUserDataCloudStack
     if [ $? == 1 ] ; then
@@ -34,7 +64,7 @@ RetrieveUserData() {
   fi
 
   # At this point, user-data is available locally. Let's uncompress it if needed
-  if [ "$(file -bi $AMICONFIG_LOCAL_USER_DATA)" == "application/x-gzip" ] ; then
+  if [ "$(file -bi $AMICONFIG_LOCAL_USER_DATA 2> /dev/null)" == "application/x-gzip" ] ; then
     $LOGGER "user-data is compressed: uncompressing it"
     cat "$AMICONFIG_LOCAL_USER_DATA" | gunzip > "$AMICONFIG_LOCAL_USER_DATA".0
     if [ -s "$AMICONFIG_LOCAL_USER_DATA".0 ] ; then
@@ -112,7 +142,7 @@ RetrieveUserDataEC2() {
 
       LOCAL_USER_DATA="/var/lib/amiconfig/$VERSION/"
       REMOTE_USER_DATA="http://$SERVER/$VERSION/"
-      DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
+      DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data 2> /dev/null)
       if [ $? == 0 ] ; then
         $LOGGER "EC2: user-data downloaded from $REMOTE_USER_DATA and written locally"
 
@@ -178,7 +208,7 @@ RetrieveUserDataCloudStack() {
             FOUND=1
           else
             # Try to perform an HTTP GET request
-            DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
+            DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data 2> /dev/null)
             if [ $? == 0 ] && [ ! -z "$DATA" ] ; then
 
               # Successful, update amiconfig
