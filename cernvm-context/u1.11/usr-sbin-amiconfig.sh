@@ -165,20 +165,37 @@ RetrieveUserDataCloudStack() {
         # Attempt a connection
         nc -w 1 $SERVER 80 > /dev/null 2>&1
         if [ $? == 0 ] ; then
+
           $LOGGER "CloudStack: metadata server $SERVER seems to respond"
 
-          # Try to perform an HTTP get request
           LOCAL_USER_DATA="/var/lib/amiconfig/latest/"
           REMOTE_USER_DATA="http://$SERVER/latest/"
-          DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
-          if [ $? == 0 ] && [! -z "$DATA" ] ; then
+          FOUND=0
 
-            # Successful, update amiconfig
-            $LOGGER "CloudStack: user-data found"
+          # We have a remote HTTP URL. Check if data is available locally
+          if [ -s "${LOCAL_USER_DATA}user-data" ] ; then
+            $LOGGER "CloudStack: local copy of user-data found, using it"
+            FOUND=1
+          else
+            # Try to perform an HTTP GET request
+            DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data)
+            if [ $? == 0 ] && [ ! -z "$DATA" ] ; then
 
-            # File is dumped there for running the script
-            mkdir -p "$LOCAL_USER_DATA"
-            echo "$DATA" > $LOCAL_USER_DATA/user-data
+              # Successful, update amiconfig
+              $LOGGER "CloudStack: user-data found from $REMOTE_USER_DATA"
+
+              # File is dumped there for running the script
+              mkdir -p "$LOCAL_USER_DATA"
+              echo "$DATA" > $LOCAL_USER_DATA/user-data
+
+              FOUND=1
+            fi
+          fi
+
+          # In case of success, update
+          if [ $FOUND == 1 ] ; then
+
+            # Fix permissions
             chmod 0600 "$LOCAL_USER_DATA"/user-data
 
             # Export local location
@@ -190,7 +207,9 @@ RetrieveUserDataCloudStack() {
 
             # Exit consistently (user-data ok, env exported, settings saved)
             return 0
+
           fi
+
         else
           $LOGGER "CloudStack: metadata server $SERVER did not respond"
         fi
