@@ -367,6 +367,8 @@ function ConfigCondorHotfix() {
 cat > "$Dst" <<"_EoF_"
 UPDATE_COLLECTOR_WITH_TCP = True
 COLLECTOR_SOCKET_CACHE_SIZE = 1000
+LOWPORT = 40000
+HIGHPORT = 41000
 _EoF_
 }
 
