@@ -361,6 +361,15 @@ function ConfigCondorPlugin() {
   return 0
 }
 
+# Other Condor fixes
+function ConfigCondorHotfix() {
+  local Dst='/etc/condor/config.d/51hotfixes'
+cat > "$Dst" <<"_EoF_"
+UPDATE_COLLECTOR_WITH_TCP = True
+COLLECTOR_SOCKET_CACHE_SIZE = 1000
+_EoF_
+}
+
 # List of actions to perform
 function Actions() {
 
@@ -376,6 +385,7 @@ function Actions() {
   Exec 'What is my environment?' -v env
 
   Exec 'Replacing Condor Plugin with a temporary fix' ConfigCondorPlugin
+  Exec 'Another temporary fix for Condor' ConfigCondorHotfix
 
   case "$VafConf_AuthMethod" in
     alice_ldap)
