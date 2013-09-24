@@ -42,8 +42,6 @@ class AMIConfigPlugin(AMIPlugin):
             # DON'T TRY THIS AT HOME (it sucks badly)
             #
 
-            print "special handling"
-
             # Get the IP(v4) with a trick
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect( ('8.8.8.8', 53) )
@@ -74,5 +72,5 @@ class AMIConfigPlugin(AMIPlugin):
                 f_eth0.write("\nPEERDNS=no\n")
 
             # Restart network and start dnsmasq
-            util.call(['/sbin/service', 'dnsmasq', 'start'])
-            util.call(['/sbin/service', 'network', 'restart'])
+            os.system("/sbin/service dnsmasq start")
+            os.system("/sbin/service network restart")

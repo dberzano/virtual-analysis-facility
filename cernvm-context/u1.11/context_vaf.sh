@@ -353,12 +353,22 @@ _EOF_
 
 }
 
-# Condor plugin hotfix
-function ConfigCondorPlugin() {
-  local Src='https://dl.dropbox.com/u/19379008/CernVM-VAF/u1.11/amiconfig-plugins-condor.py'
-  local Dest='/usr/lib/python/site-packages/amiconfig/plugins/condor.py'
-  curl -fsL "$Src" > "$Dest" || return 1
-  chmod 0644 "$Dest"
+# Hotfix for hostname and condor plugins of amiconfig
+function ConfigAmiconfigPlugins {
+  local Plugins='hostname condor'
+  local SrcBase='https://dl.dropbox.com/u/19379008/CernVM-VAF/u1.11/amiconfig-plugins-%s.py'
+  local DstBase='/usr/lib/python/site-packages/amiconfig/plugins/%s.py'
+  local Src Dest P
+
+  for P in $Plugins ; do
+    Src=`printf "$SrcBase" "$P"`
+    Dst=`printf "$DstBase" "$P"`
+    echo --- $Src
+    echo --- $Dst
+    curl -fsL "$Src" > "$Dst" || return 1
+    chmod 0644 "$Dest"
+  done
+
   return 0
 }
 
@@ -418,7 +428,7 @@ function Actions() {
   Exec 'Getting public IP and FQDN' ConfigIpHost
   Exec 'What is my environment?' -v env
 
-  Exec 'Replacing Condor Plugin with a temporary fix' ConfigCondorPlugin
+  Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
   Exec 'Replacing Bash prompt' ConfigBashPrompt
 
