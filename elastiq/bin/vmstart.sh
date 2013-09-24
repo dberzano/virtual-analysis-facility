@@ -62,6 +62,7 @@ condor_user=condor
 lowport=41000
 highport=42000
 use_ips=true
+uid_domain=*
 
 [hostname]
 
