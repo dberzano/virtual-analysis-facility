@@ -118,7 +118,15 @@ class AMIConfigPlugin(AMIPlugin):
         else:
             output.append("CONDOR_ADMIN = root@%s" % (condor_master))
         if 'uid_domain' in cfg:
-            output.append("UID_DOMAIN = %s" % (cfg['uid_domain']))
+            if cfg['uid_domain'] == '*':
+                output.append("")
+                output.append("# Preserve UID of submitting user")
+                output.append("UID_DOMAIN = *")
+                output.append("TRUST_UID_DOMAIN = True")
+                output.append("SOFT_UID_DOMAIN = True")
+                output.append("")
+            else:
+                output.append("UID_DOMAIN = %s" % (cfg['uid_domain']))
         else:
             output.append("UID_DOMAIN = %s" % condor_domain)
 
