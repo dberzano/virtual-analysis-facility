@@ -283,6 +283,7 @@ _EOF_
   # Symlink root SSH key (works even if key has not been set yet)
   #ln -nfs /root/.ssh/authorized_keys "$AuthorizedKeysDir"/root
   mkdir -p "$AuthorizedKeysDir"
+  chmod 0755 "$AuthorizedKeysDir"
   ln -nfs /root/.ssh/authorized_keys "$AuthorizedKeysDir"/root
 
   # Key manipulation program goes in sudoers. It is recontextualization-safe
