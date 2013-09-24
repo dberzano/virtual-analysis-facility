@@ -48,6 +48,7 @@ class AMIConfigPlugin(AMIPlugin):
         # slot_user = condor
         # cannonical_user = condor
         extra_vars =
+        use_ips =
         """
 
         cfg = self.ud.getSection('condor')
@@ -85,6 +86,11 @@ class AMIConfigPlugin(AMIPlugin):
         real_hostname = socket.getfqdn()
         output.append("# Real hostname: %s" % real_hostname)
 
+        # Option to always use IP addresses
+        use_ips = ('use_ips' in cfg) and (cfg['use_ips'] == 'true')
+        if use_ips:
+            output.append("# Always using IP addresses per user's choice")
+
         condor_master = ""
         if 'condor_master' in cfg:
             # We are on a worker
@@ -95,10 +101,10 @@ class AMIConfigPlugin(AMIPlugin):
 
             # If there's a mismatch between "real" and "assigned" hostname, use
             # the IP address
-            if assigned_hostname == real_hostname:
-                condor_master = assigned_hostname
-            else:
+            if use_ips or (assigned_hostname != real_hostname):
                 condor_master = real_ip
+            else:
+                condor_master = assigned_hostname
 
             output.append('DAEMON_LIST = COLLECTOR, MASTER, NEGOTIATOR, SCHEDD')
 
