@@ -71,6 +71,7 @@ class AMIConfigPlugin(AMIPlugin):
 
         # Configured hostname
         assigned_hostname = socket.gethostname()
+        output.append("# Assigned hostname: %s" % assigned_hostname)
 
         # IP address used for outbound connections. Using a dummy UDP
         # IPv4 socket to a known IP (not opening any actual connection)
@@ -82,6 +83,7 @@ class AMIConfigPlugin(AMIPlugin):
         # Hostname obtained through reverse lookup from the IP
         #real_hostname = socket.gethostbyaddr(real_ip)[0]
         real_hostname = socket.getfqdn()
+        output.append("# Real hostname: %s" % real_hostname)
 
         condor_master = ""
         if 'condor_master' in cfg:
