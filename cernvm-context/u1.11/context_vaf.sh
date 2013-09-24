@@ -368,6 +368,7 @@ cat > "$Dst" <<"_EoF_"
 UPDATE_COLLECTOR_WITH_TCP = True
 COLLECTOR_SOCKET_CACHE_SIZE = 1000
 _EoF_
+  touch /var/lock/subsys/condor
 }
 
 # List of actions to perform
