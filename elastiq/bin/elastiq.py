@@ -16,7 +16,7 @@ configuration = {
   'waiting_jobs_threshold': 10,
   'waiting_jobs_time_s': 480,
   'n_jobs_per_vm': 2,
-  'cmd_start': '/home/cloudcondor/cern-openstack/vmstart.sh'
+  'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh'
 }
 do_main_loop = True
 
