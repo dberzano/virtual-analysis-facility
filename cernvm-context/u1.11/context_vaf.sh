@@ -387,6 +387,22 @@ export PS1='\u@'\$IpLocal' [\W] \\$> '
 _EoF_
 }
 
+# Elastiq on the master
+function ConfigElastiq() {
+  local Git='https://github.com/dberzano/virtual-analysis-facility.git'
+  local GitAuth='https://dberzano@github.com/dberzano/virtual-analysis-facility.git'
+  local UnprivUser='condor'
+  local UnprivPrefix='/var/lib/condor/vaf'
+  local BashVaf='/etc/profile.d/vaf.sh'
+  mkdir -p "$UnprivPrefix"
+  git clone "$Git" "$UnprivPrefix" || return 1
+  ( cd "$UnprivPrefix" && git remote set-url origin "$GitAuth" ) || return 1
+  chown -R $UnprivUser "$UnprivPrefix" || return 1
+  cat > "$BashVaf" <<_EoF_
+export PATH="${UnprivPrefix}/elastiq/bin:\$PATH"
+_EoF_
+}
+
 # List of actions to perform
 function Actions() {
 
@@ -416,6 +432,7 @@ function Actions() {
 
   if [ $Master == 1 ] ; then
     Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
+    Exec 'Configuring elastiq' ConfigElastiq
   fi
 
 }
