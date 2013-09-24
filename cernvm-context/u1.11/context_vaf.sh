@@ -364,11 +364,27 @@ function ConfigCondorPlugin() {
 # Other Condor fixes
 function ConfigCondorHotfix() {
   local Dst='/etc/condor/config.d/51hotfixes'
-cat > "$Dst" <<"_EoF_"
+  cat > "$Dst" <<"_EoF_"
 UPDATE_COLLECTOR_WITH_TCP = True
 COLLECTOR_SOCKET_CACHE_SIZE = 1000
 _EoF_
   touch /var/lock/subsys/condor
+}
+
+# Bash prompt with IP address
+function ConfigBashPrompt() {
+  local Dst='/etc/profile.d/ps1.sh'
+  cat > "$Dst" <<_EoF_
+# Get IP address from eth0
+IpLocal=\$(/sbin/ifconfig eth0 | grep 'inet addr:')
+if [[ "\$IpLocal" =~ inet\ addr:([0-9.]+) ]] ; then
+  IpLocal="\${BASH_REMATCH[1]}"
+fi
+IpLocal="\$IpLocal($VafConf_NodeType)"
+
+# Prompt
+export PS1='\u@'\$IpLocal' [\W] \\$> '
+_EoF_
 }
 
 # List of actions to perform
@@ -387,6 +403,7 @@ function Actions() {
 
   Exec 'Replacing Condor Plugin with a temporary fix' ConfigCondorPlugin
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
+  Exec 'Replacing Bash prompt' ConfigBashPrompt
 
   case "$VafConf_AuthMethod" in
     alice_ldap)
