@@ -35,6 +35,10 @@ def robust_cmd(params, max_attempts=20, suppress_stderr=True):
   for n_attempts in range(1, max_attempts+1):
 
     try:
+      if n_attempts > 1:
+        logging.info("Waiting %ds before retrying...", % n_attempts)
+        time.sleep(n_attempts)
+
       if suppress_stderr:
         with open(os.devnull) as dev_null:
           sp = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=dev_null, shell=shell)
@@ -42,13 +46,11 @@ def robust_cmd(params, max_attempts=20, suppress_stderr=True):
         sp = subprocess.Popen(params, stdout=subprocess.PIPE, shell=shell)
       sp.wait()
     except OSError:
-      logging.error("Command cannot be executed: wait %ds before retrying..." % n_attempts)
-      time.sleep(n_attempts)
+      logging.error("Command cannot be executed!")
       continue
 
     if sp.returncode != 0:
-      logging.debug("Command returned %d: wait %ds before retrying..." % (sp.returncode, n_attempts))
-      time.sleep(n_attempts)
+      logging.debug("Command failed (returned %d)!" % sp.returncode)
     else:
       logging.info("Process exited OK");
       return {
