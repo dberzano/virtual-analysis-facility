@@ -7,6 +7,7 @@ from amiconfig.lib import util
 from amiconfig.plugin import AMIPlugin
 
 import socket
+import os
 
 class AMIConfigPlugin(AMIPlugin):
     name = 'hostname'
@@ -72,5 +73,6 @@ class AMIConfigPlugin(AMIPlugin):
                 f_eth0.write("\nPEERDNS=no\n")
 
             # Restart network and start dnsmasq
-            os.system("/sbin/service dnsmasq start")
+            os.system("/sbin/service dnsmasq restart")
             os.system("/sbin/service network restart")
+
