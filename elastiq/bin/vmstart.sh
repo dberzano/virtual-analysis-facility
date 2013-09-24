@@ -67,7 +67,7 @@ uid_domain=*
 [hostname]
 
 [ucernvm-begin]
-cernvm_branch=cernvm-devel.cern.ch
+cvmfs_branch=cernvm-devel.cern.ch
 resize_rootfs=true
 [ucernvm-end]
 _EoF_
