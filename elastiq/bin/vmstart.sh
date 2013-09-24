@@ -74,7 +74,6 @@ _EoF_
 
 # Substitutions
 sed -e 's#{{VAF_MASTER_IP}}#'$IpLocal'#g' -i "$VmContext"
-cat $VmContext
 
 # Launch
 euca-run-instances -t "$VmFlavour" -k "$VmKeypair" -f "$VmContext" "$VmImage"
