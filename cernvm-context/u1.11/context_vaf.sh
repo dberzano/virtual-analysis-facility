@@ -355,7 +355,8 @@ _EOF_
 
 # Hotfix for hostname and condor plugins of amiconfig
 function ConfigAmiconfigPlugins {
-  local Plugins='hostname condor'
+  #local Plugins='hostname condor'
+  local Plugins='condor'
   local SrcBase='https://dl.dropbox.com/u/19379008/CernVM-VAF/u1.11/amiconfig-plugins-%s.py'
   local DstBase='/usr/lib/python/site-packages/amiconfig/plugins/%s.py'
   local Src Dest P
@@ -363,8 +364,6 @@ function ConfigAmiconfigPlugins {
   for P in $Plugins ; do
     Src=`printf "$SrcBase" "$P"`
     Dst=`printf "$DstBase" "$P"`
-    echo --- $Src
-    echo --- $Dst
     curl -fsL "$Src" > "$Dst" || return 1
     chmod 0644 "$Dest"
   done
