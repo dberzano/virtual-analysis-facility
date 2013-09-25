@@ -397,6 +397,22 @@ export PS1='\u@'\$IpLocal' [\W] \\$> '
 _EoF_
 }
 
+# Mount NFS
+function ConfigNfs() {
+  local Server='128.142.242.158'
+  local Fstab='/etc/fstab'
+  local Mnt='/sw'
+
+  grep -v ":$Mnt" "$Fstab" > "$Fstab".0
+  echo "$Server:$Mnt $Mnt nfs nfsvers=3 0 0" >> "$Fstab".0
+  mv "$Fstab".0 "$Fstab"
+  mkdir -p "$Mnt"
+  mount "$Mnt"
+
+  [ -d "$Mnt/vaf" ] && return 0
+  return 1
+}
+
 # Elastiq on the master
 function ConfigElastiq() {
   local Git='https://github.com/dberzano/virtual-analysis-facility.git'
@@ -430,6 +446,7 @@ function Actions() {
   Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
   Exec 'Replacing Bash prompt' ConfigBashPrompt
+  Exec 'Mounting shared NFS software area' ConfigNfs
 
   case "$VafConf_AuthMethod" in
     alice_ldap)
