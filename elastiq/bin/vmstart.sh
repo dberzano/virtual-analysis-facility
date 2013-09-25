@@ -6,19 +6,28 @@
 # Starts a VAF VM corresponding to a Slave on the CERN OpenStack.
 #
 
-VmFlavour='m1.medium'
-VmImage='ami-00000013'
+VmFlavor='m1.medium'
+VmImage='ucvm-1.11-hdd'
+# VmImage='ami-00000013' # EC2
 VmKeypair='CernVM-VAF'
 
 # Current dir
 cd `dirname "$0"`
 
 # Source EC2 env
-source ec2rc.sh
-if [ $? != 0 ] ; then
-  echo 'Cannot load EC2 environment' >&2
-  exit 1
-fi
+# source ec2rc.sh
+# if [ $? != 0 ] ; then
+#   echo 'Cannot load EC2 environment' >&2
+#   exit 1
+# fi
+
+# OpenStack environment for nova
+export OS_AUTH_URL=https://openstack.cern.ch:5000/v2.0
+export OS_TENANT_ID=cf7bc2e1-e45a-43f4-805a-db8701309f9b
+export OS_TENANT_NAME='Personal dberzano'
+export OS_CACERT=/etc/pki/tls/certs/CERN-bundle.pem  # not supported =(
+export OS_USERNAME=dberzano
+export OS_PASSWORD=$(cat $HOME/.novapwd)  # watch out for security!
 
 # Fetch IP address
 IpLocal=`/sbin/ifconfig eth0 | grep 'inet addr:'`
@@ -75,8 +84,18 @@ _EoF_
 # Substitutions
 sed -e 's#{{VAF_MASTER_IP}}#'$IpLocal'#g' -i "$VmContext"
 
+# Form name for new VM using a random string
+VmName=vaf-`echo $IpLocal|tr . -`
+VmName="$VmName-`od -vAn -N4 -tx4 < /dev/urandom|tr -d ' '`"
+
 # Launch
-euca-run-instances -t "$VmFlavour" -k "$VmKeypair" -f "$VmContext" "$VmImage"
+#euca-run-instances -t "$VmFlavor" -k "$VmKeypair" -f "$VmContext" "$VmImage"
+nova --insecure boot \
+  --image "$VmImage" \
+  --flavor "$VmFlavor" \
+  --key-name "$VmKeypair" \
+  --user-data "$VmContext" \
+  "$VmName"
 R=$?
 rm -f $VmContext
 if [ $R != 0 ] ; then
