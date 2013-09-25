@@ -420,6 +420,9 @@ function ConfigElastiq() {
   local UnprivUser='condor'
   local UnprivPrefix='/var/lib/condor/vaf'
   local BashVaf='/etc/profile.d/vaf.sh'
+
+  [ -d "$UnprivPrefix" ] && return 0
+
   mkdir -p "$UnprivPrefix"
   git clone "$Git" "$UnprivPrefix" || return 1
   ( cd "$UnprivPrefix" && git remote set-url origin "$GitAuth" ) || return 1
@@ -427,6 +430,8 @@ function ConfigElastiq() {
   cat > "$BashVaf" <<_EoF_
 export PATH="${UnprivPrefix}/elastiq/bin:\$PATH"
 _EoF_
+
+  return 0
 }
 
 # List of actions to perform
