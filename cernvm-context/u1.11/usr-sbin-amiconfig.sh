@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 AMICONFIG="/usr/sbin/amiconfig"
 AMILOCK="/var/lock/subsys/amiconfig"
