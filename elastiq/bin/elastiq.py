@@ -36,7 +36,7 @@ def robust_cmd(params, max_attempts=20, suppress_stderr=True):
 
     try:
       if n_attempts > 1:
-        logging.info("Waiting %ds before retrying...", % n_attempts)
+        logging.info("Waiting %ds before retrying..." % n_attempts)
         time.sleep(n_attempts)
 
       if suppress_stderr:
