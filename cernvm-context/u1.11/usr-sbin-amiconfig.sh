@@ -61,7 +61,7 @@ RetrieveUserData() {
     fi
 
   else
-    RetrieveUserDataEC2 || RetrieveUserDataCloudStack
+    RetrieveUserDataCvmOnline || RetrieveUserDataEC2 || RetrieveUserDataCloudStack
     if [ $? == 1 ] ; then
       $LOGGER "No user-data can be retrieved from any location"
       return 1
@@ -83,6 +83,25 @@ RetrieveUserData() {
   fi
 
   return 0
+
+}
+
+# Tries to check for the user-data file left there from CernVM Online.
+# Returns 0 on success, 1 on failure
+RetrieveUserDataCvmOnline() {
+
+  LOCAL_USER_DATA='/var/lib/amiconfig-online/2007-12-15'
+
+  if [ -e "$LOCAL_USER_DATA/user-data" ] ; then
+    $LOGGER "CernVM Online: local user data found at $LOCAL_USER_DATA"
+    export AMICONFIG_CONTEXT_URL="file:$LOCAL_USER_DATA"
+    export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}/user-data"
+    echo "export AMICONFIG_CONTEXT_URL=$AMICONFIG_CONTEXT_URL" > $AMISETUP
+    return 0
+  fi
+
+  $LOGGER "CernVM Online: no user-data found at $LOCAL_USER_DATA"
+  return 1
 
 }
 
