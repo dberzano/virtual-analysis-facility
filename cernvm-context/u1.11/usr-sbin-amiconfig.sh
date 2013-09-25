@@ -211,63 +211,63 @@ RetrieveUserDataCloudStack() {
   # Check if we are running a metadata server on the dhcp-identifier
   # specified on every interface
   for LEASE in $LEASES ; do
-    SERVER=$(cat $LEASE | grep dhcp-server-identifier)
-    if [ ! -z "$SERVER" ]; then
-      SERVER=$(echo "$SERVER" | awk '{print $3}' | tr -d ';' | tr -d '\n' | tail -n1 )
-      if [ ! -z "$SERVER" ]; then
+    SERVER=$( cat $LEASE | grep dhcp-server-identifier | tail -n1 )
+    if [[ "$SERVER" =~ ([0-9.]+) ]] ; then
 
-        # Attempt a connection
-        nc -w 1 $SERVER 80 > /dev/null 2>&1
-        if [ $? == 0 ] ; then
+      SERVER=${BASH_REMATCH[1]}
 
-          $LOGGER "CloudStack: metadata server $SERVER seems to respond"
+      # Attempt a connection
+      nc -w 1 $SERVER 80 > /dev/null 2>&1
+      if [ $? == 0 ] ; then
 
-          LOCAL_USER_DATA="/var/lib/amiconfig/latest/"
-          REMOTE_USER_DATA="http://$SERVER/latest/"
-          FOUND=0
+        $LOGGER "CloudStack: metadata server $SERVER seems to respond"
 
-          # We have a remote HTTP URL. Check if data is available locally
-          if [ -s "${LOCAL_USER_DATA}user-data" ] ; then
-            $LOGGER "CloudStack: local copy of user-data found, using it"
-            FOUND=1
-          else
-            # Try to perform an HTTP GET request
-            DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data 2> /dev/null)
-            if [ $? == 0 ] && [ ! -z "$DATA" ] ; then
+        LOCAL_USER_DATA="/var/lib/amiconfig/latest/"
+        REMOTE_USER_DATA="http://$SERVER/latest/"
+        FOUND=0
 
-              # Successful, update amiconfig
-              $LOGGER "CloudStack: user-data found from $REMOTE_USER_DATA"
-
-              # File is dumped there for running the script
-              mkdir -p "$LOCAL_USER_DATA"
-              echo "$DATA" > $LOCAL_USER_DATA/user-data
-
-              FOUND=1
-            fi
-          fi
-
-          # In case of success, update
-          if [ $FOUND == 1 ] ; then
-
-            # Fix permissions
-            chmod 0600 "$LOCAL_USER_DATA"/user-data
-
-            # Export local location
-            export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}user-data"
-
-            # Pass remote URL there for metadata (used by amiconfig)
-            echo "AMICONFIG_CONTEXT_URL=$REMOTE_USER_DATA" > $AMISETUP
-            export AMICONFIG_CONTEXT_URL="$REMOTE_USER_DATA"
-
-            # Exit consistently (user-data ok, env exported, settings saved)
-            return 0
-
-          fi
-
+        # We have a remote HTTP URL. Check if data is available locally
+        if [ -s "${LOCAL_USER_DATA}user-data" ] ; then
+          $LOGGER "CloudStack: local copy of user-data found, using it"
+          FOUND=1
         else
-          $LOGGER "CloudStack: metadata server $SERVER did not respond"
+          # Try to perform an HTTP GET request
+          DATA=$(wget -t$AMI_DOWNLOAD_RETRIES -T$AMI_DOWNLOAD_TIMEOUT_S -q -O - $REMOTE_USER_DATA/user-data 2> /dev/null)
+          if [ $? == 0 ] && [ ! -z "$DATA" ] ; then
+
+            # Successful, update amiconfig
+            $LOGGER "CloudStack: user-data found from $REMOTE_USER_DATA"
+
+            # File is dumped there for running the script
+            mkdir -p "$LOCAL_USER_DATA"
+            echo "$DATA" > $LOCAL_USER_DATA/user-data
+
+            FOUND=1
+          fi
         fi
+
+        # In case of success, update
+        if [ $FOUND == 1 ] ; then
+
+          # Fix permissions
+          chmod 0600 "$LOCAL_USER_DATA"/user-data
+
+          # Export local location
+          export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}user-data"
+
+          # Pass remote URL there for metadata (used by amiconfig)
+          echo "AMICONFIG_CONTEXT_URL=$REMOTE_USER_DATA" > $AMISETUP
+          export AMICONFIG_CONTEXT_URL="$REMOTE_USER_DATA"
+
+          # Exit consistently (user-data ok, env exported, settings saved)
+          return 0
+
+        fi
+
+      else
+        $LOGGER "CloudStack: metadata server $SERVER did not respond"
       fi
+
     fi
   done
 
