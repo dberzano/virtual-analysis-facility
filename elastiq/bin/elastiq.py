@@ -24,7 +24,7 @@ configuration = {
   'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh',
 
   # Conditions to stop idle VMs
-  'idle_for_time_s': 100,
+  'idle_for_time_s': 30,
   'cmd_stop': 'echo ciao'
 
 }
@@ -167,11 +167,17 @@ def poll_condor_status(current_workers_status):
   # Browse the new list for all workers with zero jobs, check if they already
   # had zero jobs in the previous call, in case they're not, update the time
 
-  for key,value in workers_status:
-    print "%s>>%s" % (key,value)
+  check_time = time.time()
 
-  return None
-  #return workers_status
+  for host,info in workers_status.iteritems():
+    if host in current_workers_status and \
+      current_workers_status[host]['jobs'] == info['jobs']:
+      workers_status[host]['unchangedsince'] = current_workers_status[host]['unchangedsince']
+    else:
+      workers_status[host]['unchangedsince'] = check_time
+
+  # Returns the new status
+  return workers_status
 
 
 def main():
@@ -228,9 +234,17 @@ def main():
 
     new_workers_status = poll_condor_status(workers_status)
     if new_workers_status is not None:
-      print new_workers_status
+      #print new_workers_status
       workers_status = new_workers_status
       new_workers_status = None
+
+      for host,info in workers_status.iteritems():
+        if info['jobs'] != 0: continue
+        if (check_time-info['unchangedsince']) > configuration['idle_for_time_s']:
+          logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
+            (host,configuration['idle_for_time_s']))
+          workers_status[host]['unchangedsince'] = check_time  # reset timer
+          scale_down(host)
 
     # End of loop
     logging.info("Sleeping %d seconds" % configuration['sleep_s']);
