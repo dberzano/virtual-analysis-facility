@@ -6,7 +6,7 @@
 # Starts a VAF VM corresponding to a Slave on the CERN OpenStack.
 #
 
-VmFlavor='m1.medium'
+VmFlavor='m1.large'
 VmImage='ucvm-1.11-hdd'
 # VmImage='ami-00000013' # EC2
 VmKeypair='CernVM-VAF'

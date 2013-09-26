@@ -14,8 +14,8 @@ import os
 configuration = {
   'sleep_s': 15,
   'waiting_jobs_threshold': 10,
-  'waiting_jobs_time_s': 480,
-  'n_jobs_per_vm': 2,
+  'waiting_jobs_time_s': 100,
+  'n_jobs_per_vm': 4,
   'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh'
 }
 do_main_loop = True
