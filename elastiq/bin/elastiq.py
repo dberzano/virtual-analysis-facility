@@ -9,14 +9,24 @@ import signal
 import sys
 import subprocess
 import os
+import xml.etree.ElementTree as ET
 
 
 configuration = {
-  'sleep_s': 15,
+
+  # Main loop
+  'sleep_s': 3,
+
+  # Conditions to start new VMs
   'waiting_jobs_threshold': 10,
   'waiting_jobs_time_s': 100,
   'n_jobs_per_vm': 4,
-  'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh'
+  'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh',
+
+  # Conditions to stop idle VMs
+  'idle_for_time_s': 100,
+  'cmd_stop': 'echo ciao'
+
 }
 do_main_loop = True
 
@@ -104,8 +114,64 @@ def poll_condor_queue():
   return -1
 
 
-def poll_condor_status():
-  pass
+def poll_condor_status(current_workers_status):
+  """Polls HTCondor for the list of workers with the number of running jobs
+  per worker. Returns [...]"""
+
+  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'])
+  if ret is None or 'output' not in ret:
+    return None
+
+  workers_status = {}
+
+  try:
+
+    xdoc = ET.fromstring(ret['output'])
+    for xc in xdoc.findall("./c"):
+
+      xtype = xc.find("./a[@n='MyType']/s")
+      if xtype is None or xtype.text != 'Machine': continue
+
+      xhost = xc.find("./a[@n='Machine']/s")
+      if xhost is None: continue
+
+      xactivity = xc.find("./a[@n='Activity']/s")
+      if xactivity is None: continue
+
+      host = xhost.text
+      activity = xactivity.text
+
+      # Here we have host and activity. Activity might be, for instance,
+      # 'Idle' or 'Busy'. We only check for 'Idle'
+
+      idle = (activity == 'Idle')
+
+      if host in workers_status:
+        # Update current entry ('jobs' key is there always)
+        if not idle:
+          workers_status[host]['jobs'] = workers_status[host]['jobs'] + 1
+      else:
+        # Entry not yet present
+        workers_status[host] = {}
+        if idle:
+          workers_status[host]['jobs'] = 0
+        else:
+          workers_status[host]['jobs'] = 1
+
+  except ET.ParseError, e:
+    logging.error("Invalid XML!")
+    return None
+
+  # At this point we have the previous state and the current state saved
+  # properly somewhere.
+  # Browse the new list for all workers with zero jobs, check if they already
+  # had zero jobs in the previous call, in case they're not, update the time
+
+  for key,value in workers_status:
+    print "%s>>%s" % (key,value)
+
+  return None
+  #return workers_status
 
 
 def main():
@@ -118,9 +184,14 @@ def main():
 
   # State variables
   first_time_above_threshold = -1
+  workers_status = {}
 
   # Main loop
   while do_main_loop == True:
+
+    #
+    # Check queue and start new VMs
+    #
 
     n_waiting_jobs = poll_condor_queue()
     check_time = time.time()
@@ -151,8 +222,17 @@ def main():
     else:
       logging.error("Cannot get the number of waiting jobs this time, sorry")
 
-    #poll_condor_status()
+    #
+    # Check current status and shut down idle VMs
+    #
 
+    new_workers_status = poll_condor_status(workers_status)
+    if new_workers_status is not None:
+      print new_workers_status
+      workers_status = new_workers_status
+      new_workers_status = None
+
+    # End of loop
     logging.info("Sleeping %d seconds" % configuration['sleep_s']);
     time.sleep( configuration['sleep_s'] )
 
