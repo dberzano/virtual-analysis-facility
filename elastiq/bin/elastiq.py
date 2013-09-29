@@ -87,7 +87,7 @@ def scale_up(nvms):
   nvms = int(nvms)
   n_succ = 0
   n_fail = 0
-  logging.info("Launching %d new vm(s)..." % nvms)
+  logging.info("Launching %d new VMs..." % nvms)
 
   for i in range(1, nvms+1):
     #ret = robust_cmd([ 'echo', str(i), configuration['cmd_start'] ], suppress_stderr=False, max_attempts=2)
@@ -97,7 +97,7 @@ def scale_up(nvms):
       logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
     else:
       n_fail+=1
-      logging.error("Launching VM failed. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
+      logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
 
   return n_succ
 
