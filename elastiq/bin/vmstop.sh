@@ -10,8 +10,8 @@
 cd `dirname "$0"`
 
 # Stop a single VM
-VmName="$1"
-VmName="${VmName%%.*}"
+VmNameCondor="$1"
+VmName="${VmNameCondor%%.*}"
 if [ "$VmName" == '' ] ; then
   echo 'Virtual Machine FQDN not specified =(' >&2
   exit 1
@@ -24,6 +24,9 @@ export OS_TENANT_NAME='Personal dberzano'
 export OS_CACERT=/etc/pki/tls/certs/CERN-bundle.pem  # not supported =(
 export OS_USERNAME=dberzano
 export OS_PASSWORD=$(cat $HOME/.novapwd)  # watch out for security!
+
+# Removes VM from the HTCondor queues
+condor_off "$VmNameCondor" || exit 2
 
 # Request immediate VM shutdown
 T=`mktemp`
@@ -38,7 +41,7 @@ fi
 grep -q '^No server with a name or ID of' "$T"
 if [ $? == 0 ] ; then
   rm -f "$T"
-  exit 2
+  exit 3
 fi
 
 # All looks OK
