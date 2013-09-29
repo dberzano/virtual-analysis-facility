@@ -113,7 +113,7 @@ def scale_down(hosts):
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
   for h in hosts:
-    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=2)
+    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=1)
     if ret and 'exitcode' in ret and ret['exitcode'] == 0:
       n_succ+=1
       logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
