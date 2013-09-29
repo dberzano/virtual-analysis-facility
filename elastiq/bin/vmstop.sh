@@ -33,6 +33,8 @@ T=`mktemp`
 nova --insecure delete "$VmName" 2>&1 | tee "$T"
 RV=${PIPESTATUS[0]}
 if [ $RV != 0 ] ; then
+  # Shutdown failed: re-insert VM in queues!
+  condor_on "$VmNameCondor"
   rm -f "$T"
   exit $RV
 fi
@@ -40,6 +42,7 @@ fi
 # Return is zero, but might have failed all the same
 grep -q '^No server with a name or ID of' "$T"
 if [ $? == 0 ] ; then
+  condor_on "$VmNameCondor"
   rm -f "$T"
   exit 3
 fi
