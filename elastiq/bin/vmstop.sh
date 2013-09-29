@@ -18,12 +18,7 @@ if [ "$VmName" == '' ] ; then
 fi
 
 # OpenStack environment for nova
-export OS_AUTH_URL=https://openstack.cern.ch:5000/v2.0
-export OS_TENANT_ID=cf7bc2e1-e45a-43f4-805a-db8701309f9b
-export OS_TENANT_NAME='Personal dberzano'
-export OS_CACERT=/etc/pki/tls/certs/CERN-bundle.pem  # not supported =(
-export OS_USERNAME=dberzano
-export OS_PASSWORD=$(cat $HOME/.novapwd)  # watch out for security!
+source os_creds.sh || exit 4
 
 # Removes VM from the HTCondor queues
 condor_off "$VmNameCondor" || exit 2

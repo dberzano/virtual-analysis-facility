@@ -8,26 +8,13 @@
 
 VmFlavor='m1.large'
 VmImage='ucvm-1.11-hdd'
-# VmImage='ami-00000013' # EC2
 VmKeypair='CernVM-VAF'
 
 # Current dir
 cd `dirname "$0"`
 
-# Source EC2 env
-# source ec2rc.sh
-# if [ $? != 0 ] ; then
-#   echo 'Cannot load EC2 environment' >&2
-#   exit 1
-# fi
-
 # OpenStack environment for nova
-export OS_AUTH_URL=https://openstack.cern.ch:5000/v2.0
-export OS_TENANT_ID=cf7bc2e1-e45a-43f4-805a-db8701309f9b
-export OS_TENANT_NAME='Personal dberzano'
-export OS_CACERT=/etc/pki/tls/certs/CERN-bundle.pem  # not supported =(
-export OS_USERNAME=dberzano
-export OS_PASSWORD=$(cat $HOME/.novapwd)  # watch out for security!
+source os_creds.sh || exit 4
 
 # Fetch IP address
 IpLocal=`/sbin/ifconfig eth0 | grep 'inet addr:'`
