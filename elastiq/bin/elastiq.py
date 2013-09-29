@@ -25,7 +25,7 @@ configuration = {
 
   # Conditions to stop idle VMs
   'idle_for_time_s': 30,
-  'cmd_stop': 'echo ciao'
+  'cmd_stop': '/var/lib/condor/vaf/elastiq/bin/vmstop.sh'
 
 }
 do_main_loop = True
@@ -98,6 +98,28 @@ def scale_up(nvms):
     else:
       n_fail+=1
       logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
+
+  return n_succ
+
+
+def scale_down(hosts):
+  """Invokes the shutdown command for each host on the given list. External
+  command should take care of everything. Returns the number of hosts that
+  were asked to shut down correctly.
+  """
+
+  n_succ = 0
+  n_fail = 0
+  logging.info("Requesting shutdown of %d VMs..." % len(hosts))
+
+  for h in hosts:
+    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=2)
+    if ret and 'exitcode' in ret and ret['exitcode'] == 0:
+      n_succ+=1
+      logging.info("VM requested to stop OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
+    else:
+      n_fail+=1
+      logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, nvms, n_succ, n_fail))
 
   return n_succ
 
@@ -238,13 +260,16 @@ def main():
       workers_status = new_workers_status
       new_workers_status = None
 
+      hosts_shutdown = []
       for host,info in workers_status.iteritems():
         if info['jobs'] != 0: continue
         if (check_time-info['unchangedsince']) > configuration['idle_for_time_s']:
           logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
             (host,configuration['idle_for_time_s']))
           workers_status[host]['unchangedsince'] = check_time  # reset timer
-          scale_down(host)
+          hosts_shutdown.append(host)
+
+      scale_down(hosts_shutdown)
 
     # End of loop
     logging.info("Sleeping %d seconds" % configuration['sleep_s']);
