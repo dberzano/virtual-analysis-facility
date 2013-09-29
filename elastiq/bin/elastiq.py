@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 configuration = {
 
   # Main loop
-  'sleep_s': 3,
+  'sleep_s': 15,
 
   # Conditions to start new VMs
   'waiting_jobs_threshold': 10,
@@ -24,7 +24,7 @@ configuration = {
   'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh',
 
   # Conditions to stop idle VMs
-  'idle_for_time_s': 30,
+  'idle_for_time_s': 3600,
   'cmd_stop': '/var/lib/condor/vaf/elastiq/bin/vmstop.sh'
 
 }
