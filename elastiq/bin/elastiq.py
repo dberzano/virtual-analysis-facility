@@ -269,7 +269,8 @@ def main():
           workers_status[host]['unchangedsince'] = check_time  # reset timer
           hosts_shutdown.append(host)
 
-      scale_down(hosts_shutdown)
+      if len(hosts_shutdown) > 0:
+        scale_down(hosts_shutdown)
 
     # End of loop
     logging.info("Sleeping %d seconds" % configuration['sleep_s']);
