@@ -37,7 +37,7 @@ def exit_main_loop(signal, frame):
   do_main_loop = False
 
 
-def robust_cmd(params, max_attempts=20, suppress_stderr=True):
+def robust_cmd(params, max_attempts=5, suppress_stderr=True):
 
   shell = isinstance(params, basestring)
   sp = None
@@ -113,7 +113,7 @@ def scale_down(hosts):
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
   for h in hosts:
-    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=1)
+    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=3)
     if ret and 'exitcode' in ret and ret['exitcode'] == 0:
       n_succ+=1
       logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
@@ -129,7 +129,7 @@ def poll_condor_queue():
   Returns the number of inserted jobs on success, or -1 on failure.
   """
 
-  ret = robust_cmd(['condor_q', '-attributes', 'JobStatus', '-long'])
+  ret = robust_cmd(['condor_q', '-attributes', 'JobStatus', '-long'], max_attempts=10)
   if ret and 'output' in ret:
     return ret['output'].count("JobStatus = 1")
 
@@ -140,7 +140,7 @@ def poll_condor_status(current_workers_status):
   """Polls HTCondor for the list of workers with the number of running jobs
   per worker. Returns [...]"""
 
-  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'])
+  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=2)
   if ret is None or 'output' not in ret:
     return None
 
