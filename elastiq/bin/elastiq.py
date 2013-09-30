@@ -205,7 +205,9 @@ def poll_condor_status(current_workers_status):
 def main():
 
   # Log level
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S")
 
   # Register signal
   signal.signal(signal.SIGINT, exit_main_loop)
