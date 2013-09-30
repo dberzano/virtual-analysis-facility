@@ -21,14 +21,14 @@ fi
 source os_creds.sh || exit 4
 
 # Removes VM from the HTCondor queues
-condor_off "$VmNameCondor" || exit 2
+condor_off "$VmNameCondor"
 
 # Request immediate VM shutdown
 T=`mktemp`
 nova --insecure delete "$VmName" 2>&1 | tee "$T"
 RV=${PIPESTATUS[0]}
 if [ $RV != 0 ] ; then
-  # Shutdown failed: re-insert VM in queues!
+  # Shutdown failed: attempt to re-insert VM in queues!
   condor_on "$VmNameCondor"
   rm -f "$T"
   exit $RV
