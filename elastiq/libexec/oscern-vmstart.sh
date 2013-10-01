@@ -25,59 +25,9 @@ else
   exit 2
 fi
 
-# Get user-data from the same machine
-VmUserDataPath=$(find /var/lib/amiconfig -name user-data -print -quit 2> /dev/null)
-if [ "$VmUserDataPath" == 0 ] ; then
-  echo 'Cannot find user-data!' >&2
-  exit 5
-fi
-
-cat $VmUserDataPath
-
-exit 0
-
 # Prepare context
 VmContext=`mktemp`
-cat > "$VmContext" <<"_EoF_"
-#!/bin/sh
-. /etc/cernvm/site.conf
-export VafConf_NodeType=slave
-export VafConf_AuthMethod=alice_ldap
-export VafConf_NumPoolAccounts='50'
-CVM_ContextUrl='https://dl.dropbox.com/u/19379008/CernVM-VAF/u1.11/context_vaf.sh'
-CVM_ContextDest='/tmp/context_vaf.sh'
-curl -L $CVM_ContextUrl -o $CVM_ContextDest && source $CVM_ContextDest
-rm -f $CVM_ContextDest
-
-
-exit
-[amiconfig]
-plugins=cernvm condor hostname
-
-[cernvm]
-organisations=None
-repositories=
-shell=/bin/bash
-config_url=http://cernvm.cern.ch/config
-edition=Batch
-
-[condor]
-condor_secret=yabbayabba
-condor_master={{VAF_MASTER_IP}}
-condor_group=condor
-condor_user=condor
-lowport=41000
-highport=42000
-use_ips=true
-uid_domain=*
-
-[hostname]
-
-[ucernvm-begin]
-cvmfs_branch=cernvm-devel.cern.ch
-resize_rootfs=true
-[ucernvm-end]
-_EoF_
+cp user-data-slave.txt "$VmContext" || exit 5
 
 # Substitutions
 sed -e 's#{{VAF_MASTER_IP}}#'$IpLocal'#g' -i "$VmContext"
@@ -87,7 +37,6 @@ VmName=vaf-`echo $IpLocal|tr . -`
 VmName="$VmName-`od -vAn -N4 -tx4 < /dev/urandom|tr -d ' '`"
 
 # Launch
-#euca-run-instances -t "$VmFlavor" -k "$VmKeypair" -f "$VmContext" "$VmImage"
 nova --insecure boot \
   --image "$VmImage" \
   --flavor "$VmFlavor" \
