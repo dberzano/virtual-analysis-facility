@@ -18,7 +18,7 @@ if [ "$VmName" == '' ] ; then
 fi
 
 # OpenStack environment for nova
-source os_creds.sh || exit 4
+source oscern-conf.sh || exit 4
 
 # Removes VM from the HTCondor queues
 condor_off "$VmNameCondor"

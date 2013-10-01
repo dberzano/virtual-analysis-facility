@@ -21,11 +21,11 @@ configuration = {
   'waiting_jobs_threshold': 10,
   'waiting_jobs_time_s': 100,
   'n_jobs_per_vm': 4,
-  'cmd_start': '/var/lib/condor/vaf/elastiq/bin/vmstart.sh',
+  'cmd_start': 'vmstart.sh',
 
   # Conditions to stop idle VMs
   'idle_for_time_s': 3600,
-  'cmd_stop': '/var/lib/condor/vaf/elastiq/bin/vmstop.sh'
+  'cmd_stop': 'vmstop.sh'
 
 }
 do_main_loop = True

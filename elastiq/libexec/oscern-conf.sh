@@ -1,5 +1,5 @@
 #
-# os_creds.sh -- by Dario Berzano <dario.berzano@cern.ch>
+# oscern-conf.sh -- by Dario Berzano <dario.berzano@cern.ch>
 #
 # Credentials (well, without password!) for accessing the CERN OpenStack.
 #

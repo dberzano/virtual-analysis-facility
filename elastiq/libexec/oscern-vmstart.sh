@@ -14,7 +14,7 @@ VmKeypair='CernVM-VAF'
 cd `dirname "$0"`
 
 # OpenStack environment for nova
-source os_creds.sh || exit 4
+source oscern-conf.sh || exit 4
 
 # Fetch IP address
 IpLocal=`/sbin/ifconfig eth0 | grep 'inet addr:'`
@@ -24,6 +24,17 @@ else
   echo 'Cannot determine IP address' >&2
   exit 2
 fi
+
+# Get user-data from the same machine
+VmUserDataPath=$(find /var/lib/amiconfig -name user-data -print -quit 2> /dev/null)
+if [ "$VmUserDataPath" == 0 ] ; then
+  echo 'Cannot find user-data!' >&2
+  exit 5
+fi
+
+cat $VmUserDataPath
+
+exit 0
 
 # Prepare context
 VmContext=`mktemp`
