@@ -403,6 +403,9 @@ function ConfigNfs() {
   local Fstab='/etc/fstab'
   local Mnt='/sw'
 
+  # Check if server exists
+  ping -c 1 -w 2 $Server > /dev/null 2>&1 || return 0
+
   grep -v ":$Mnt" "$Fstab" > "$Fstab".0
   echo "$Server:$Mnt $Mnt nfs nfsvers=3 0 0" >> "$Fstab".0
   mv "$Fstab".0 "$Fstab"
