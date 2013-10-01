@@ -6,8 +6,9 @@
 # Stops a VAF VM given a FQDN on the CERN OpenStack.
 #
 
-# Current dir
-cd `dirname "$0"`
+# Current dir (resolve symlinks -- needed for reading conf)
+Prog=`readlink -e "$0"`
+cd `dirname "$Prog"`
 
 # Stop a single VM
 VmNameCondor="$1"

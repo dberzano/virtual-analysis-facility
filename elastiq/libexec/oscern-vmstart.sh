@@ -10,8 +10,9 @@ VmFlavor='m1.large'
 VmImage='ucvm-1.11-hdd'
 VmKeypair='CernVM-VAF'
 
-# Current dir
-cd `dirname "$0"`
+# Current dir (resolve symlinks -- needed for reading conf)
+Prog=`readlink -e "$0"`
+cd `dirname "$Prog"`
 
 # OpenStack environment for nova
 source oscern-conf.sh || exit 4

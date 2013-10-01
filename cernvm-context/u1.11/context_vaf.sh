@@ -424,15 +424,23 @@ function ConfigElastiq() {
   local UnprivPrefix='/var/lib/condor/vaf'
   local BashVaf='/etc/profile.d/vaf.sh'
 
-  [ -d "$UnprivPrefix" ] && return 0
+  if [ ! -d "$UnprivPrefix" ] ; then
 
-  mkdir -p "$UnprivPrefix"
-  git clone "$Git" "$UnprivPrefix" || return 1
-  ( cd "$UnprivPrefix" && git remote set-url origin "$GitAuth" ) || return 1
-  chown -R $UnprivUser "$UnprivPrefix" || return 1
-  cat > "$BashVaf" <<_EoF_
+    mkdir -p "$UnprivPrefix"
+    git clone "$Git" "$UnprivPrefix" || return 1
+    ( cd "$UnprivPrefix" && git remote set-url origin "$GitAuth" ) || return 1
+    chown -R $UnprivUser "$UnprivPrefix" || return 1
+    cat > "$BashVaf" <<_EoF_
 export PATH="${UnprivPrefix}/elastiq/bin:\$PATH"
 _EoF_
+
+  fi
+
+  local SrcPrefix="${UnprivPrefix}/elastiq/libexec/${VafConf_CloudApi}-"
+  local DstPrefix="${UnprivPrefix}/elastiq/bin"
+
+  ln -nfs "${SrcPrefix}vmstart.sh" "${DstPrefix}/vmstart.sh" || return 1
+  ln -nfs "${SrcPrefix}vmstop.sh" "${DstPrefix}/vmstop.sh" || return 1
 
   return 0
 }
