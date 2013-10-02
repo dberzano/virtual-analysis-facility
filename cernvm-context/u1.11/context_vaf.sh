@@ -350,6 +350,9 @@ _EOF_
   # Restart service
   service httpd restart
 
+  # Adjust permissions again
+  chmod 0755 "$AuthorizedKeysDir"
+
 }
 
 # Hotfix for hostname and condor plugins of amiconfig
