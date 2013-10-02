@@ -460,6 +460,22 @@ _EoF_
   return $?
 }
 
+# Configure yum proxy
+function ConfigYumProxy() {
+  local Conf='/etc/yum.conf'
+  local Url='http://cernvm.cern.ch/config'
+
+  #cp "$Conf" "$Conf".0
+
+  local Proxy=$(curl "$Url" | grep "^CVMFS_HTTP_PROXY")
+  Proxy=$(echo "$Proxy" | cut -d= -f2- | cut -d\; -f1 | cut -d\| -f1)
+  [ "$Proxy" == '' ] && return 1
+
+  cat "$Conf" | grep -v '^proxy=' | \
+    sed -e 's#\(\[main\]\)#\1\nproxy='"$Proxy"'#' > "$Conf".0
+  mv "$Conf".0 "$Conf"
+}
+
 # List of actions to perform
 function Actions() {
 
@@ -476,6 +492,7 @@ function Actions() {
 
   Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
+  Exec 'Config yum proxy' -v ConfigYumProxy
   Exec 'Replacing Bash prompt' ConfigBashPrompt
   Exec 'Mounting shared NFS software area' ConfigNfs
 
