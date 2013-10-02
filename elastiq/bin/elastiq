@@ -52,6 +52,15 @@ function status() {
   fi
 }
 
+# Enter elastiq screen
+function enter_screen() {
+  if status ; then
+    screen -r "$elastiqScreenName"
+    return $?
+  fi
+  return 1
+}
+
 # Start elastiq
 function start() {
   if ! status ; then
@@ -77,6 +86,11 @@ case "$1" in
 
   status)
     status
+    exit $?
+  ;;
+
+  log)
+    enter_screen
     exit $?
   ;;
 
