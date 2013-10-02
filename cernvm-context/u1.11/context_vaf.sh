@@ -455,8 +455,8 @@ _EoF_
   echo "cmd_start = ${SrcPrefix}vmstart.sh" >> "$Cfg"
   echo "cmd_stop = ${SrcPrefix}vmstop.sh" >> "$Cfg"
 
-  # Start and stop (elastiq is in $UnprivUser's PATH)
-  su "${UnprivUser}" -s /bin/sh -c 'elastiq restart'
+  # Start and stop
+  su "${UnprivUser}" -s /bin/sh -c "${UnprivPrefix}/elastiq/bin/elastiq restart"
   return $?
 }
 
