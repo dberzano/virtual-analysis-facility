@@ -3,6 +3,7 @@
 # Starts elastiq with proper Python version from CVMFS
 
 cd `dirname "$0"`
+Prog=`basename "$0"`
 
 # GCC
 source /cvmfs/sft.cern.ch/lcg/external/gcc/4.7.2/x86_64-slc6-gcc47-opt/setup.sh ''  # empty arg needed!
@@ -12,5 +13,76 @@ export PythonPrefix=/cvmfs/sft.cern.ch/lcg/external/Python/2.7.3/x86_64-slc6-gcc
 export PATH="$PythonPrefix/bin:$PATH"
 export LD_LIBRARY_PATH="$PythonPrefix/lib:$LD_LIBRARY_PATH"
 
+# Control variables
+export elastiqScreenName='elastiq'
+export elastiqCommand='python elastiq.py'
+
+# Stop elastiq
+function stop() {
+
+  # Kill elastiq
+  local Signal='15'
+  while status ; do
+    kill -$Signal $Pid 2> /dev/null
+    sleep 1
+    kill -0 $Pid 2> /dev/null && Signal=9
+  done
+
+  # Clean dangling screen
+  screen -ls | grep -q "$elastiqScreenName" && \
+    screen -S "$elastiqScreenName" -X quit
+  screen -wipe > /dev/null 2>&1
+
+  return 0
+
+}
+
+# Query status
+function status() {
+  local Out
+  Out=$( ps -e -o pid,command | grep " ${elastiqCommand}$" | grep -v SCREEN )
+  if [ "$Out" == '' ] ; then
+    export Pid=''
+    echo "$Prog not running" >&2
+    return 1
+  else
+    export Pid=$(echo $Out | awk '{ print $1 }')
+    echo "$Prog running with PID $Pid" >&2
+    return 0
+  fi
+}
+
 # Start elastiq
-exec python elastiq.py
+function start() {
+  if ! status ; then
+    screen -dmS "$elastiqScreenName" $elastiqCommand
+    sleep 1
+    status
+  fi
+  return 0
+}
+
+# Entry point
+case "$1" in
+
+  start)
+    start
+    exit $?
+  ;;
+
+  stop)
+    stop
+    exit $?
+  ;;
+
+  status)
+    status
+    exit $?
+  ;;
+
+  *)
+    echo "Usage: $Prog [start|stop|status|restart]" >&2
+    exit 1
+  ;;
+
+esac
