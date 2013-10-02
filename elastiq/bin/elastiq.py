@@ -10,6 +10,7 @@ import sys
 import subprocess
 import os
 import xml.etree.ElementTree as ET
+from ConfigParser import SafeConfigParser
 
 
 configuration = {
@@ -29,6 +30,37 @@ configuration = {
 
 }
 do_main_loop = True
+
+
+def conf():
+
+  global configuration
+
+  cf = SafeConfigParser()
+
+  # etc dir at the same level of the bin dir containing this script
+  close_etc_path = os.path.realpath( os.path.dirname(__file__) + "/../etc" )
+
+  # The last file has precedence over the first file
+  config_files = [
+    "/etc/elastiq.conf",
+    "%s/elastiq.conf" % close_etc_path,
+    os.path.expanduser("~/.elastiq.conf")
+  ]
+  cf.read(config_files)
+
+  for key,val in configuration.iteritems():
+
+    try:
+      new_val = cf.get('elastiq', key)
+      try:
+        new_val = float(new_val)
+      except ValueError:
+        pass
+      configuration[key] = new_val
+      logging.info("Configuration: %s = %s (from file)", key, str(new_val))
+    except Exception, e:
+      logging.info("Configuration: %s = %s (default)", key, str(val))
 
 
 def exit_main_loop(signal, frame):
@@ -211,6 +243,9 @@ def main():
 
   # Register signal
   signal.signal(signal.SIGINT, exit_main_loop)
+
+  # Read configuration
+  conf()
 
   # State variables
   first_time_above_threshold = -1
