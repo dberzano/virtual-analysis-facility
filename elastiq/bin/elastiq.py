@@ -49,6 +49,10 @@ def conf():
   ]
   cf.read(config_files)
 
+  # Print config files
+  for f in config_files:
+    logging.info("Configuration file: %s" % f)
+
   for key,val in configuration.iteritems():
 
     try:
