@@ -35,4 +35,5 @@ uid_domain=*
 [ucernvm-begin]
 cvmfs_branch=cernvm-devel.cern.ch
 resize_rootfs=true
+cvmfs_http_proxy="http://t2-squid-01.to.infn.it:3128;http://ca-proxy.cern.ch:3128;DIRECT"
 [ucernvm-end]
