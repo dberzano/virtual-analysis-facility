@@ -89,6 +89,11 @@ case "$1" in
     exit $?
   ;;
 
+  restart)
+    stop && start
+    exit $?
+  ;;
+
   log)
     enter_screen
     exit $?
