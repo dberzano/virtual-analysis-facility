@@ -3,7 +3,7 @@
 export VafConf_NodeType=master
 export VafConf_AuthMethod=alice_ldap
 export VafConf_NumPoolAccounts='50'
-export VafConf_CloudApi='oscern'
+export VafConf_CloudApi='ec2to'
 export VafConf_Elastiq_SLEEP_S=15
 export VafConf_Elastiq_WAITING_JOBS_THRESHOLD=10
 export VafConf_Elastiq_WAITING_JOBS_TIME_S=100
