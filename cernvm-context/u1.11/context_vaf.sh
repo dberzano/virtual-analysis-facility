@@ -281,7 +281,6 @@ _EOF_
   service sshd reload
 
   # Symlink root SSH key (works even if key has not been set yet)
-  #ln -nfs /root/.ssh/authorized_keys "$AuthorizedKeysDir"/root
   mkdir -p "$AuthorizedKeysDir"
   chmod 0755 "$AuthorizedKeysDir"
   ln -nfs /root/.ssh/authorized_keys "$AuthorizedKeysDir"/root
