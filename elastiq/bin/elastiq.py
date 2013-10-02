@@ -39,7 +39,7 @@ def conf():
   cf = SafeConfigParser()
 
   # etc dir at the same level of the bin dir containing this script
-  close_etc_path = os.path.realpath( os.path.dirname(__file__) + "/../etc" )
+  close_etc_path = os.path.realpath( os.path.realpath(os.path.dirname(__file__)) + "/../etc" )
 
   # The last file has precedence over the first file
   config_files = [
