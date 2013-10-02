@@ -10,6 +10,10 @@ AMI_DOWNLOAD_RETRIES=2
 # Timeout, in seconds, to retrieve user-data
 AMI_DOWNLOAD_TIMEOUT_S=20
 
+# Lock files: to prevent recontextualization at reboot
+AMI_DONE_USER='/var/lib/amiconfig/user.done'
+AMI_DONE_HEPIX='/var/lib/amiconfig/hepix.done'
+
 if [ "$AMILOGECHO" != '' ] && [ "$AMILOGECHO" != '0' ] ; then
   LOGGER="echo :: "
   PIPELOGGER="cat"
@@ -91,16 +95,21 @@ RetrieveUserData() {
 RetrieveUserDataCvmOnline() {
 
   LOCAL_USER_DATA='/var/lib/amiconfig-online/2007-12-15'
+  CHECK_SILENT='--check-silent'
 
   if [ -e "$LOCAL_USER_DATA/user-data" ] ; then
-    $LOGGER "CernVM Online: local user data found at $LOCAL_USER_DATA"
-    export AMICONFIG_CONTEXT_URL="file:$LOCAL_USER_DATA"
-    export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}/user-data"
-    echo "export AMICONFIG_CONTEXT_URL=$AMICONFIG_CONTEXT_URL" > $AMISETUP
+    if [ "$1" != "$CHECK_SILENT" ] ; then
+      $LOGGER "CernVM Online: local user data found at $LOCAL_USER_DATA"
+      export AMICONFIG_CONTEXT_URL="file:$LOCAL_USER_DATA"
+      export AMICONFIG_LOCAL_USER_DATA="${LOCAL_USER_DATA}/user-data"
+      echo "export AMICONFIG_CONTEXT_URL=$AMICONFIG_CONTEXT_URL" > $AMISETUP
+    fi
     return 0
   fi
 
-  $LOGGER "CernVM Online: no user-data found at $LOCAL_USER_DATA"
+  if [ "$1" != "$CHECK_SILENT" ] ; then
+    $LOGGER "CernVM Online: no user-data found at $LOCAL_USER_DATA"
+  fi
   return 1
 
 }
@@ -337,6 +346,48 @@ Main() {
   # Assert amiconfig executable
   [ -f $AMICONFIG ] && [ -x $AMICONFIG ] || exit 1
 
+  # Parse options
+  FORCE='(none)'
+  MODE='(none)'
+  while [ $# -gt 0 ] ; do
+    if [ "$1" == '--force' ] && [ "$FORCE" == '(none)' ] ; then
+      FORCE=1
+    elif [ "${1:0:1}" != '-' ] && [ "$MODE" == '(none)' ] ; then
+      MODE="$1"
+    fi
+    shift
+  done
+  [ "$FORCE" == '(none)' ] && FORCE=0
+  [ "$MODE" == '(none)' ] && MODE=''
+
+  # Before doing anything, check if context has already been performed
+  case "$MODE" in
+    user)
+      [ ! -e "$AMI_DONE_USER" ] && DO_CONTEXT=1
+    ;;
+    hepix)
+      [ ! -e "$AMI_DONE_HEPIX" ] && DO_CONTEXT=1
+    ;;
+    *)
+      $LOGGER "Invalid parameter. Usage: amiconfig.sh [user|hepix]"
+      exit 2
+    ;;
+  esac
+
+  if [ "$DO_CONTEXT" != 1 ] ; then
+    if RetrieveUserDataCvmOnline --check-silent ; then
+      # CernVM Online
+      $LOGGER "Contextualization for $MODE already run, but allowing recontext in CernVM Online mode"
+    elif [ "$FORCE" == 1 ] ; then
+      # Forcing
+      $LOGGER "Contextualization for $MODE already run, forcing anyway as per explicit request"
+    else
+      # Don't recontextualize: exit now
+      $LOGGER "Contextualization for $MODE already run, skipping (force with --force)"
+      exit 0
+    fi
+  fi
+
   # Retrieve user-data. After calling this function, in case of success, we
   # have a consistent environment:
   #  - user-data, uncompressed, locally available at AMICONFIG_LOCAL_USER_DATA
@@ -353,14 +404,18 @@ Main() {
   $LOGGER " * AMICONFIG_CONTEXT_URL=$AMICONFIG_CONTEXT_URL"
   $LOGGER " * AMICONFIG_LOCAL_USER_DATA=$AMICONFIG_LOCAL_USER_DATA"
 
-  case $1 in
+  case "$MODE" in
     user)
       RunUserDataScript before
       $AMICONFIG 2>&1 #| $PIPELOGGER
       RunUserDataScript after
+      mkdir -p `dirname "$AMI_DONE_USER"`
+      touch "$AMI_DONE_USER"
     ;;
     hepix)
       $AMICONFIG -f hepix
+      mkdir -p `dirname "$AMI_DONE_HEPIX"`
+      touch "$AMI_DONE_HEPIX"
     ;;
   esac
 }
