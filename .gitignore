@@ -1,2 +1,3 @@
 /client/etc
 /elastiq/etc/elastiq.conf
+/elastiq/var/log

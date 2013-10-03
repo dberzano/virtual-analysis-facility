@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# Starts elastiq with proper Python version from CVMFS
+#
+# elastiq -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Control script for starting/stopping elastiq.py using proper environment.
+# Requires SLC6 with CVMFS: uses Python v2.7 from there.
+#
 
 cd `dirname "$0"`
 Prog=`basename "$0"`
@@ -16,6 +21,7 @@ export LD_LIBRARY_PATH="$PythonPrefix/lib:$LD_LIBRARY_PATH"
 # Control variables
 export elastiqScreenName='elastiq'
 export elastiqCommand='python elastiq.py'
+export elastiqLogFile=$( readlink -m '../var/log/elastiq.log' )
 
 # Stop elastiq
 function stop() {
@@ -95,12 +101,17 @@ case "$1" in
   ;;
 
   log)
+    status && tail -f "$elastiqLogFile"
+    exit $?
+  ;;
+
+  console)
     enter_screen
     exit $?
   ;;
 
   *)
-    echo "Usage: $Prog [start|stop|status|restart]" >&2
+    echo "Usage: $Prog [start|stop|status|restart|log|console]" >&2
     exit 1
   ;;
 

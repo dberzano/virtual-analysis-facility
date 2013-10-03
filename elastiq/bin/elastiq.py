@@ -4,7 +4,7 @@
 # actions.
 
 import time
-import logging
+import logging, logging.handlers
 import signal
 import sys
 import subprocess
@@ -65,6 +65,38 @@ def conf():
       logging.info("Configuration: %s = %s (from file)", key, str(new_val))
     except Exception, e:
       logging.info("Configuration: %s = %s (default)", key, str(val))
+
+
+def log():
+  """Configures logging. Outputs log to the console and, optionally, to a file.
+  File name is automatically selected. Returns the file name, or None if it
+  cannot write to a file."""
+
+  format="%(asctime)s %(levelname)s %(message)s"
+  datefmt="%Y-%m-%d %H:%M:%S"
+  level=logging.DEBUG
+
+  # Log to console
+  logging.basicConfig(level=level, format=format, datefmt=datefmt)
+
+  # Log directory and file
+  dir = os.path.realpath( os.path.realpath(os.path.dirname(__file__)) + "/../var/log" )
+  filename = "%s/elastiq.log" % dir
+
+  # Try to create log directory and file
+  try:
+    if not os.path.isdir(dir):
+      os.makedirs(dir, 0755)
+    log_file = logging.handlers.RotatingFileHandler(filename, mode="a", maxBytes=1000000, backupCount=30)
+    log_file.setLevel(level)
+    log_file.setFormatter( logging.Formatter(format, datefmt) )
+    logging.getLogger("").addHandler(log_file)
+    log_file.doRollover()  # rotate immediately
+  except Exception, e:
+    logging.warning("Cannot log to file %s: %s: %s" % (filename, type(e).__name__, e))
+    return None
+
+  return filename
 
 
 def exit_main_loop(signal, frame):
@@ -240,10 +272,12 @@ def poll_condor_status(current_workers_status):
 
 def main():
 
-  # Log level
-  logging.basicConfig(level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S")
+  # Configure logging
+  lf = log()
+  if lf is None:
+    logging.warning("Cannot log to file, only console will be used!")
+  else:
+    logging.info("Logging to file %s and to console - log files are rotated" % lf)
 
   # Register signal
   signal.signal(signal.SIGINT, exit_main_loop)
