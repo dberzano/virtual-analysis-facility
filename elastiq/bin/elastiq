@@ -1,4 +1,24 @@
 #!/bin/bash
+#
+# elastiq:      Starts and stops the elastiq HTCondor queue monitor
+#
+# chkconfig: - 99 09
+# description:  Control script for starting/stopping elastiq.py using \
+#               proper environment. Requires SLC6 (or RHEL6-compat) \
+#               with CVMFS: uses Python v2.7 from there.
+#
+### BEGIN INIT INFO
+# Provides: elastiq
+# Required-Start:
+# Default-Stop: 0 1 6
+# Short-Description: Starts the Name Switch Cache Daemon
+# Description:  Control script for starting/stopping elastiq.py using \
+#               proper environment. Requires SLC6 (or RHEL6-compat) \
+#               with CVMFS: uses Python v2.7 from there.
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
 
 #
 # elastiq -- by Dario Berzano <dario.berzano@cern.ch>
@@ -7,8 +27,10 @@
 # Requires SLC6 with CVMFS: uses Python v2.7 from there.
 #
 
-cd `dirname "$0"`
+Prog=`readlink -e "$0"`
+cd `dirname "$Prog"`
 Prog=`basename "$0"`
+Lock='/var/lock/subsys/elastiq'
 
 # GCC
 source /cvmfs/sft.cern.ch/lcg/external/gcc/4.7.2/x86_64-slc6-gcc47-opt/setup.sh ''  # empty arg needed!
@@ -28,8 +50,12 @@ export elastiqUser='condor'  # TODO: don't hardcode
 function stop() {
 
   # Kill elastiq
+  echo -n "Stopping $Prog: "
   local Signal='15'
-  while status ; do
+  local LastMsg
+  while true ; do
+    LastMsg=`status 2>&1` || break
+    status 2> /dev/null  # for pid
     kill -$Signal $Pid 2> /dev/null
     sleep 1
     kill -0 $Pid 2> /dev/null && Signal=9
@@ -39,6 +65,11 @@ function stop() {
   screen -ls | grep -q "$elastiqScreenName" && \
     screen -S "$elastiqScreenName" -X quit
   screen -wipe > /dev/null 2>&1
+
+  echo -n "$LastMsg"
+  rm -f "$Lock"
+  success
+  echo ''
 
   return 0
 
@@ -70,16 +101,35 @@ function enter_screen() {
 
 # Start elastiq
 function start() {
-  if ! status ; then
-    screen -dmS "$elastiqScreenName" $elastiqCommand
+  echo -n "Starting $Prog: "
+  local Rv=0
+  local LastMsg
+  LastMsg=`status 2>&1`
+  if [ $? != 0 ] ; then
+
+    # Switching to unprivileged
+    if [ `whoami` == 'root' ] ; then
+      Cmd="su $elastiqUser -s /bin/sh -c"
+    else
+      Cmd="/bin/sh -c"
+    fi
+    $Cmd "screen -dmS \"$elastiqScreenName\" $elastiqCommand" > /dev/null 2>&1
+
     sleep 1
-    status
+    LastMsg=`status 2>&1`
+    Rv=$?
   fi
-  return 0
+  echo -n "$LastMsg"
+  if [ $Rv == 0 ] ; then
+    touch "$Lock" 2> /dev/null
+    success
+  else
+    failure
+  fi
+  echo ''
+  return $Rv
 }
 
-# Switching to unprivileged
-[ $(whoami) == 'root' ] && exec su "$elastiqUser" -s /bin/sh -c "\"$0\" $@"
 
 # Entry point
 case "$1" in
