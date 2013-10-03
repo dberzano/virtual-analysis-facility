@@ -54,7 +54,7 @@ function stop() {
   local Signal='15'
   local LastMsg
   while true ; do
-    LastMsg=`status 2>&1` || break
+    LastMsg=`status` || break
     status 2> /dev/null  # for pid
     kill -$Signal $Pid 2> /dev/null
     sleep 1
@@ -81,11 +81,11 @@ function status() {
   Out=$( ps -e -o pid,command | grep " ${elastiqCommand}$" | grep -v SCREEN )
   if [ "$Out" == '' ] ; then
     export Pid=''
-    echo "$Prog not running" >&2
+    echo "$Prog not running"
     return 1
   else
     export Pid=$(echo $Out | awk '{ print $1 }')
-    echo "$Prog running with PID $Pid" >&2
+    echo "$Prog running with PID $Pid"
     return 0
   fi
 }
@@ -104,7 +104,7 @@ function start() {
   echo -n "Starting $Prog: "
   local Rv=0
   local LastMsg
-  LastMsg=`status 2>&1`
+  LastMsg=`status`
   if [ $? != 0 ] ; then
 
     # Switching to unprivileged
@@ -116,7 +116,7 @@ function start() {
     $Cmd "screen -dmS \"$elastiqScreenName\" $elastiqCommand" > /dev/null 2>&1
 
     sleep 1
-    LastMsg=`status 2>&1`
+    LastMsg=`status`
     Rv=$?
   fi
   echo -n "$LastMsg"
@@ -165,7 +165,7 @@ case "$1" in
   ;;
 
   *)
-    echo "Usage: $Prog [start|stop|status|restart|log|console]" >&2
+    echo "Usage: $Prog [start|stop|status|restart|log|console]"
     exit 1
   ;;
 
