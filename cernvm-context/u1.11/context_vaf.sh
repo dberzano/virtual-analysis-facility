@@ -278,11 +278,21 @@ _EOF_
   Sed="${Sed} ; s|^.*AuthorizedKeysFile.*\$"
   Sed="${Sed}|AuthorizedKeysFile $AuthorizedKeysDir/%u|g"
   sed -i /etc/ssh/sshd_config -e "$Sed"
-  service sshd reload
 
-  # Symlink root SSH key (works even if key has not been set yet)
+  # Create authorized keys directory
   mkdir -p "$AuthorizedKeysDir"
   chmod 0755 "$AuthorizedKeysDir"
+
+  # Make chmod resilient: cloud-init tends to change permissons of the
+  # AuthorizedKeysDir, so run chmod *after* it to restore *our* perms
+  local ChmodLine="chmod 0755 \"$AuthorizedKeysDir\""
+  local RcLocal='/etc/rc.d/rc.local'
+  cat "$RcLocal" | grep -v "$ChmodLine" > "$RcLocal".0
+  echo "$ChmodLine" >> "$RcLocal".0
+  mv "$RcLocal".0 "$RcLocal"
+  chmod 0755 "$RcLocal"  # make it executable
+
+  # Symlink root SSH key (works even if key has not yet been set)
   ln -nfs /root/.ssh/authorized_keys "$AuthorizedKeysDir"/root
 
   # Key manipulation program goes in sudoers. It is recontextualization-safe
@@ -349,10 +359,6 @@ _EOF_
 
   # Restart service
   service httpd restart
-
-  # Adjust permissions again
-  chmod 0755 "$AuthorizedKeysDir"
-
 }
 
 # Hotfix for hostname and condor plugins of amiconfig
