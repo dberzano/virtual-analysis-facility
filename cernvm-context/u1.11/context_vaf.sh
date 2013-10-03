@@ -231,6 +231,7 @@ function ConfigSshcertauth() {
   local AuthPlugin="$1"
   local Tag='master'
   local Url="https://github.com/dberzano/sshcertauth/archive/${Tag}.tar.gz"
+  #local Url="https://dl.dropbox.com/u/19379008/CernVM-VAF/repo/sshcertauth-${Tag}.tar.gz"
   local Arch=`mktemp`
   local Dest='/var/www/html/auth'
   local AuthorizedKeysDir="/etc/ssh/authorized_keys_globus"
@@ -244,7 +245,7 @@ function ConfigSshcertauth() {
   rm -rf "$Dest"
   mkdir -p "$Dest"
   curl -sLo "$Arch" "$Url" && \
-    tar -C "$Dest" --strip-components=1 -xzf "$Arch"
+    tar -C "$Dest" --strip-components=1 -xzf "$Arch" || return 1
   rm -f "$Arch"
 
   # Configuration for the sshcertauth username plugin
@@ -500,7 +501,7 @@ function Actions() {
 
   Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
-  Exec 'Config yum proxy' -v ConfigYumProxy
+  Exec 'Config yum proxy' ConfigYumProxy
   Exec 'Replacing Bash prompt' ConfigBashPrompt
   Exec 'Mounting shared NFS software area' ConfigNfs
 
