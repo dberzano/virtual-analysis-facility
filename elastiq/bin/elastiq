@@ -22,6 +22,7 @@ export LD_LIBRARY_PATH="$PythonPrefix/lib:$LD_LIBRARY_PATH"
 export elastiqScreenName='elastiq'
 export elastiqCommand='python elastiq.py'
 export elastiqLogFile=$( readlink -m '../var/log/elastiq.log' )
+export elastiqUser='condor'  # TODO: don't hardcode
 
 # Stop elastiq
 function stop() {
@@ -76,6 +77,9 @@ function start() {
   fi
   return 0
 }
+
+# Switching to unprivileged
+[ $(whoami) == 'root' ] && exec su "$elastiqUser" -s /bin/sh -c "\"$0\" $@"
 
 # Entry point
 case "$1" in
