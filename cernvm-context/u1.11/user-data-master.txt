@@ -6,7 +6,7 @@ export VafConf_NumPoolAccounts='50'
 export VafConf_CloudApi='ec2to'
 export VafConf_Elastiq_SLEEP_S=15
 export VafConf_Elastiq_WAITING_JOBS_THRESHOLD=10
-export VafConf_Elastiq_WAITING_JOBS_TIME_S=100
+export VafConf_Elastiq_WAITING_JOBS_TIME_S=300
 export VafConf_Elastiq_N_JOBS_PER_VM=6
 export VafConf_Elastiq_IDLE_FOR_TIME_S=1800
 
