@@ -464,8 +464,13 @@ _EoF_
   echo "cmd_start = ${SrcPrefix}vmstart.sh" >> "$Cfg"
   echo "cmd_stop = ${SrcPrefix}vmstop.sh" >> "$Cfg"
 
-  # Start and stop
-  su "${UnprivUser}" -s /bin/sh -c "${UnprivPrefix}/elastiq/bin/elastiq restart"
+  # Startup script in the right place
+  ln -nfs ${UnprivPrefix}/elastiq/bin/elastiq /etc/init.d/elastiq || return 1
+  chkconfig --add elastiq || return 1
+  chkconfig elastiq on
+
+  # (Re)start it
+  service elastiq restart
   return $?
 }
 
