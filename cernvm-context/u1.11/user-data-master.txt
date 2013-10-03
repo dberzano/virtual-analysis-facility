@@ -12,7 +12,16 @@ export VafConf_Elastiq_IDLE_FOR_TIME_S=1800
 
 CVM_ContextUrl='https://dl.dropbox.com/u/19379008/CernVM-VAF/u1.11/context_vaf.sh'
 CVM_ContextDest='/tmp/context_vaf.sh'
-curl -L $CVM_ContextUrl -o $CVM_ContextDest && source $CVM_ContextDest
+Attempt=0
+while ! curl -L $CVM_ContextUrl -o $CVM_ContextDest ; do
+  let Attempt++
+  sleep 1
+  if [ $Attempt == 5 ] ; then
+    Attempt='-1'
+    break
+  fi
+done
+[ "$Attempt" != -1 ] && source $CVM_ContextDest
 rm -f $CVM_ContextDest
 
 
