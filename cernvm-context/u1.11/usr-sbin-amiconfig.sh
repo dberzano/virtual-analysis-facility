@@ -375,10 +375,7 @@ Main() {
   esac
 
   if [ "$DO_CONTEXT" != 1 ] ; then
-    if RetrieveUserDataCvmOnline --check-silent ; then
-      # CernVM Online
-      $LOGGER "Contextualization for $MODE already run, but allowing recontext in CernVM Online mode"
-    elif [ "$FORCE" == 1 ] ; then
+    if [ "$FORCE" == 1 ] ; then
       # Forcing
       $LOGGER "Contextualization for $MODE already run, forcing anyway as per explicit request"
     else
