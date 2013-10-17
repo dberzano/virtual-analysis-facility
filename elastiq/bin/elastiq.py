@@ -11,6 +11,8 @@ import subprocess
 import os
 import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
+import boto
+import socket
 
 
 cf = {}
