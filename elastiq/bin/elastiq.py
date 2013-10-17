@@ -13,7 +13,8 @@ import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
 
 
-configuration = {
+configuration = {}
+configuration['elastiq'] = {
 
   # Main loop
   'sleep_s': 15,
@@ -29,6 +30,15 @@ configuration = {
   'cmd_stop': 'vmstop.sh'
 
 }
+configuration['ec2'] = {
+
+  # Configuration to access EC2 API
+  'api_url': 'https://dummy.ec2.server/ec2/',
+  'aws_access_key_id': 'my_username',
+  'aws_secret_access_key': 'my_password',
+
+}
+
 do_main_loop = True
 
 
@@ -53,18 +63,20 @@ def conf():
   for f in config_files:
     logging.info("Configuration file: %s" % f)
 
-  for key,val in configuration.iteritems():
+  for sec_name,sec_content in configuration.iteritems():
 
-    try:
-      new_val = cf.get('elastiq', key)
+    for key,val in sec_content.iteritems():
+
       try:
-        new_val = float(new_val)
-      except ValueError:
-        pass
-      configuration[key] = new_val
-      logging.info("Configuration: %s = %s (from file)", key, str(new_val))
-    except Exception, e:
-      logging.info("Configuration: %s = %s (default)", key, str(val))
+        new_val = cf.get(sec_name, key)  # --> [sec_name]
+        try:
+          new_val = float(new_val)
+        except ValueError:
+          pass
+        configuration[sec_name][key] = new_val
+        logging.info("Configuration: %s.%s = %s (from file)", sec_name, key, str(new_val))
+      except Exception, e:
+        logging.info("Configuration: %s.%s = %s (default)", sec_name, key, str(val))
 
 
 def log():
@@ -159,7 +171,7 @@ def scale_up(nvms):
 
   for i in range(1, nvms+1):
     #ret = robust_cmd([ 'echo', str(i), configuration['cmd_start'] ], suppress_stderr=False, max_attempts=2)
-    ret = robust_cmd([ configuration['cmd_start'] ], max_attempts=1)
+    ret = robust_cmd([ configuration['elastiq']['cmd_start'] ], max_attempts=1)
     if ret and 'output' in ret:
       n_succ+=1
       logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
@@ -181,7 +193,7 @@ def scale_down(hosts):
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
   for h in hosts:
-    ret = robust_cmd([ configuration['cmd_stop'], h ], max_attempts=3)
+    ret = robust_cmd([ configuration['elastiq']['cmd_stop'], h ], max_attempts=3)
     if ret and 'exitcode' in ret and ret['exitcode'] == 0:
       n_succ+=1
       logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
@@ -300,27 +312,27 @@ def main():
     check_time = time.time()
 
     if n_waiting_jobs != -1:
-      if n_waiting_jobs > configuration['waiting_jobs_threshold']:
+      if n_waiting_jobs > configuration['elastiq']['waiting_jobs_threshold']:
         if first_time_above_threshold != -1:
-          if (check_time-first_time_above_threshold) > configuration['waiting_jobs_time_s']:
+          if (check_time-first_time_above_threshold) > configuration['elastiq']['waiting_jobs_time_s']:
             # Above threshold time-wise and jobs-wise: do something
             logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
-              (n_waiting_jobs, configuration['waiting_jobs_threshold'], configuration['waiting_jobs_time_s']))
-            scale_up( round(n_waiting_jobs / float(configuration['n_jobs_per_vm'])) )
+              (n_waiting_jobs, configuration['elastiq']['waiting_jobs_threshold'], configuration['elastiq']['waiting_jobs_time_s']))
+            scale_up( round(n_waiting_jobs / float(configuration['elastiq']['n_jobs_per_vm'])) )
             first_time_above_threshold = -1
           else:
             # Above threshold but not for enough time
             logging.info("Waiting jobs: %d (still above threshold of %d for less than %ds)" % \
-              (n_waiting_jobs, configuration['waiting_jobs_threshold'], configuration['waiting_jobs_time_s']))
+              (n_waiting_jobs, configuration['elastiq']['waiting_jobs_threshold'], configuration['elastiq']['waiting_jobs_time_s']))
         else:
           # First time seen above threshold
           logging.info("Waiting jobs: %d (first time above threshold of %d)" % \
-            (n_waiting_jobs, configuration['waiting_jobs_threshold']))
+            (n_waiting_jobs, configuration['elastiq']['waiting_jobs_threshold']))
           first_time_above_threshold = check_time
       else:
         # Not above threshold: reset
         logging.info("Waiting jobs: %d (below threshold of %d)" % \
-          (n_waiting_jobs, configuration['waiting_jobs_threshold']))
+          (n_waiting_jobs, configuration['elastiq']['waiting_jobs_threshold']))
         first_time_above_threshold = -1
     else:
       logging.error("Cannot get the number of waiting jobs this time, sorry")
@@ -338,9 +350,9 @@ def main():
       hosts_shutdown = []
       for host,info in workers_status.iteritems():
         if info['jobs'] != 0: continue
-        if (check_time-info['unchangedsince']) > configuration['idle_for_time_s']:
+        if (check_time-info['unchangedsince']) > configuration['elastiq']['idle_for_time_s']:
           logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
-            (host,configuration['idle_for_time_s']))
+            (host,configuration['elastiq']['idle_for_time_s']))
           workers_status[host]['unchangedsince'] = check_time  # reset timer
           hosts_shutdown.append(host)
 
@@ -348,8 +360,8 @@ def main():
         scale_down(hosts_shutdown)
 
     # End of loop
-    logging.info("Sleeping %d seconds" % configuration['sleep_s']);
-    time.sleep( configuration['sleep_s'] )
+    logging.info("Sleeping %d seconds" % configuration['elastiq']['sleep_s']);
+    time.sleep( configuration['elastiq']['sleep_s'] )
 
 
 #
