@@ -40,6 +40,12 @@ export PythonPrefix=/cvmfs/sft.cern.ch/lcg/external/Python/2.7.3/x86_64-slc6-gcc
 export PATH="$PythonPrefix/bin:$PATH"
 export LD_LIBRARY_PATH="$PythonPrefix/lib:$LD_LIBRARY_PATH"
 
+# Boto
+export PyBotoPrefix='/var/lib/condor/boto'
+export PATH="$PyBotoPrefix/bin:$PATH"
+export LD_LIBRARY_PATH="$PyBotoPrefix/lib:$LD_LIBRARY_PATH"
+export PYTHONPATH="$PyBotoPrefix/lib/python2.7/site-packages:$PYTHONPATH"
+
 # Control variables
 export elastiqScreenName='elastiq'
 export elastiqCommand='python elastiq.py'
