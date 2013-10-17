@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
 import boto
 import socket
+from time import sleep
 
 
 cf = {}
@@ -44,6 +45,7 @@ cf['ec2'] = {
 
 }
 
+ec2h = None
 do_main_loop = True
 
 
@@ -223,6 +225,75 @@ def scale_down(hosts):
   return n_succ
 
 
+def ec2_instances():
+  """Returns all instances visible with current EC2 credentials, or None on
+  errors. Returned object is a list of boto instances."""
+
+  try:
+    res = ec2h.get_all_reservations()
+  except Exception, e:
+    logging.error("Can't get list of EC2 instances (maybe wrong credentials?)")
+    return None
+
+  inst = []
+  for r in res:
+    inst += r.instances
+  return inst
+
+
+def ec2_scale_down(hosts):
+  """Asks the Cloud to shutdown hosts corresponding to the given hostnames
+  by using the EC2 interface. Returns the number of hosts successfully shut
+  down."""
+
+  n_succ = 0
+  n_fail = 0
+
+  if len(hosts) == 0:
+    logging.warning("No hosts to shut down!")
+    return 0
+
+  logging.info("Requesting shutdown of %d VMs..." % len(hosts))
+
+  inst = ec2_instances()
+  if inst is None or len(inst) == 0:
+    logging.warning("No list of instances can be retrieved from EC2")
+    return 0
+
+  for h in hosts:
+
+    # Find host's IPv4
+    try:
+      priv_ipv4 = socket.gethostbyname(h)
+    except Exception:
+      # Don't add host if IP address could not be found
+      logging.warning("Ignoring HTCondor host %s: can't reslove IPv4 address" % h)
+      continue
+
+    # Find IP in instances list
+    found = False
+    for i in inst:
+      if priv_ipv4 == i.private_ip_address:
+        # Virtual machine found: turn it off using EC2
+        logging.info("Found instance corresponding to HTCondor host %s" % h)
+
+        try:
+          i.terminate()
+          sleep(2)
+          i.terminate()  # twice on purpose
+          logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
+        except Exception, e:
+          logging.error("Shutdown via EC2 failed for %s (%s)" % (h,priv_ipv4))
+
+        found = True
+        break
+
+    if not found:
+      logging.warning("Cannot find EC2 VM for HTCondor host %s (%s)" % (h,priv_ipv4))
+
+  return n_succ
+
+
 def poll_condor_queue(): 
   """Polls HTCondor for the number of inserted (i.e., "waiting") jobs.
   Returns the number of inserted jobs on success, or -1 on failure.
@@ -303,6 +374,8 @@ def poll_condor_status(current_workers_status):
 
 def main():
 
+  global ec2h
+
   # Configure logging
   lf = log()
   if lf is None:
@@ -315,6 +388,12 @@ def main():
 
   # Read configuration
   conf()
+
+  # Initialize the EC2 handler
+  ec2h = boto.connect_ec2_endpoint(
+    cf['ec2']['api_url'],
+    aws_access_key_id=cf['ec2']['aws_access_key_id'],
+    aws_secret_access_key=cf['ec2']['aws_secret_access_key'])
 
   # State variables
   first_time_above_threshold = -1
@@ -376,7 +455,7 @@ def main():
           hosts_shutdown.append(host)
 
       if len(hosts_shutdown) > 0:
-        scale_down(hosts_shutdown)
+        ec2_scale_down(hosts_shutdown)
 
     # End of loop
     logging.info("Sleeping %d seconds" % cf['elastiq']['sleep_s']);
