@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Monitors the HTCondor queue for new jobs and idle nodes, and take proper
 # actions.
