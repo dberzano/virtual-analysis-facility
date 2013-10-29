@@ -47,6 +47,10 @@ cf['ec2'] = {
 do_main_loop = True
 
 
+def type2str(any):
+  return type(any).__name__
+
+
 def conf():
 
   global cf
