@@ -29,7 +29,10 @@ cf['elastiq'] = {
 
   # Conditions to stop idle VMs
   'idle_for_time_s': 3600,
-  'cmd_stop': 'vmstop.sh'
+  'cmd_stop': 'vmstop.sh',
+
+  # Condor central server (defaults to current one)
+  'condor_host': None
 
 }
 cf['ec2'] = {
@@ -47,6 +50,16 @@ do_main_loop = True
 def conf():
 
   global cf
+
+  # Set the default for some variables
+  cmdo = robust_cmd(['condor_config_val', 'CONDOR_HOST'], max_attempts=1)
+  if cmdo and 'output' in cmdo:
+    # Try to find IP address from host name
+    try:
+      cf['elastiq']['condor_host'] = socket.gethostbyname(cmdo['output'].rstrip())
+    except Exception:
+      # TODO: current IP
+      cf['elastiq']['condor_host'] = None
 
   cf_parser = SafeConfigParser()
 
