@@ -105,7 +105,7 @@ def log():
   File name is automatically selected. Returns the file name, or None if it
   cannot write to a file."""
 
-  format="%(asctime)s %(levelname)s %(message)s"
+  format="%(asctime)s %(name)s %(levelname)s %(message)s"
   datefmt="%Y-%m-%d %H:%M:%S"
   level=logging.DEBUG
 
@@ -128,6 +128,9 @@ def log():
   except Exception, e:
     logging.warning("Cannot log to file %s: %s: %s" % (filename, type(e).__name__, e))
     return None
+
+  # Silence boto errors
+  logging.getLogger("boto").setLevel(logging.CRITICAL)
 
   return filename
 
@@ -441,7 +444,7 @@ def main():
 
     new_workers_status = poll_condor_status(workers_status)
     if new_workers_status is not None:
-      #print new_workers_status
+      #logging.debug(new_workers_status)
       workers_status = new_workers_status
       new_workers_status = None
 
