@@ -417,19 +417,20 @@ def ec2_scale_down(hosts, valid_hostnames=None):
 
     for i in inst_shutdown:
 
+      ipv4 = i.private_ip_address
       success = False
       if int(cf['debug']['dry_run_shutdown_vms']) == 0:
         try:
           i.terminate()
           time.sleep(1)
           i.terminate()  # twice on purpose
-          logging.debug("Shutdown via EC2 of %s succeeded" % i.private_ip_address)
+          logging.debug("Shutdown via EC2 of %s succeeded" % ipv4)
           success = True
         except Exception, e:
-          logging.error("Shutdown via EC2 failed for %s" % i.private_ip_address)
+          logging.error("Shutdown via EC2 failed for %s" % ipv4)
       else:
         # Dry run
-        logging.debug("Not shutting down %s via EC2: dry run" % i.private_ip_address);
+        logging.debug("Not shutting down %s via EC2: dry run" % ipv4);
         success = True
 
       # Messages
