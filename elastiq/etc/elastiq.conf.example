@@ -12,6 +12,10 @@ cmd_stop = vmstop.sh
 #dry_run_shutdown_vms = 1
 #dry_run_boot_vms = 1
 
+[quota]
+min_vms = 0
+max_vms = 3
+
 [ec2]
 api_url = https://dummy.ec2.server/ec2/
 aws_access_key_id = my_username

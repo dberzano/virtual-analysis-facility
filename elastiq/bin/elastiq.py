@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
 import boto
 import socket
+import random
 
 
 cf = {}
@@ -44,11 +45,19 @@ cf['ec2'] = {
   'aws_secret_access_key': 'my_password',
 
 }
+cf['quota'] = {
+
+  # Min and max VMs
+  'min_vms': 0,
+  'max_vms': 3
+
+}
 cf['debug'] = {
 
   # Set to !0 to dry run
   'dry_run_shutdown_vms': 0,
   'dry_run_boot_vms': 0
+
 }
 
 ec2h = None
@@ -269,6 +278,8 @@ def ec2_scale_down(hosts):
     logging.warning("No list of instances can be retrieved from EC2")
     return 0
 
+  # Find valid hosts -- i.e., hosts having a corresponding running VM
+  valid_instances = []
   for h in hosts:
 
     # Find host's IPv4
@@ -284,25 +295,42 @@ def ec2_scale_down(hosts):
     for i in inst:
       if priv_ipv4 == i.private_ip_address:
         # Virtual machine found: turn it off using EC2
-        logging.info("Found instance corresponding to HTCondor host %s" % h)
+        logging.debug("Found instance corresponding to HTCondor host %s" % h)
+        valid_instances.append(i)
         found = True
-
-        if int(cf['debug']['dry_run_shutdown_vms']) == 0:
-          try:
-            i.terminate()
-            time.sleep(2)
-            i.terminate()  # twice on purpose
-            logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
-          except Exception, e:
-            logging.error("Shutdown via EC2 failed for %s (%s)" % (h,priv_ipv4))
-        else:
-          # Dry run
-          logging.info("Not shutting down %s (%s) via EC2: dry run" % (h,priv_ipv4));
-
         break
 
     if not found:
       logging.warning("Cannot find EC2 VM for HTCondor host %s (%s)" % (h,priv_ipv4))
+
+  # Print number of valid instances
+  logging.debug("%d valid instances found", len(valid_instances))
+
+  # Shuffle the list
+  random.shuffle(valid_instances)
+
+  # Iterate and shutdown
+  for i in valid_instances:
+
+    if int(cf['debug']['dry_run_shutdown_vms']) == 0:
+      try:
+        i.terminate()
+        time.sleep(1)
+        i.terminate()  # twice on purpose
+        logging.info("Shutdown via EC2 of %s succeeded" % priv_ipv4)
+        n_succ+=1
+      except Exception, e:
+        logging.error("Shutdown via EC2 failed for %s" % priv_ipv4)
+        n_fail+=1
+    else:
+      # Dry run
+      logging.info("Not shutting down %s via EC2: dry run" % priv_ipv4);
+      n_succ+=1
+
+    # Check min quota
+    if n_succ == len(valid_instances)-cf['quota']['min_vms']:
+      logging.info("Maintainig quota of minimum %d VM(s) running", cf['quota']['min_vms'])
+      break
 
   return n_succ
 
