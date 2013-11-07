@@ -305,9 +305,11 @@ def scale_down(hosts):
   return n_succ
 
 
-def ec2_running_instances():
+def ec2_running_instances(hostnames=None):
   """Returns all running instances visible with current EC2 credentials, or
-  None on errors. Returned object is a list of boto instances."""
+  None on errors. If hostnames is specified, it returns the sole running
+  instances whose IP address matches the resolved input hostnames. Returned
+  object is a list of boto instances."""
 
   try:
     res = ec2h.get_all_reservations()
@@ -315,11 +317,35 @@ def ec2_running_instances():
     logging.error("Can't get list of EC2 instances (maybe wrong credentials?)")
     return None
 
+  # Resolve IPs
+  if hostnames is not None:
+    ips = []
+    for h in hostnames:
+      try:
+        ipv4 = socket.gethostbyname(h)
+        ips.append(ipv4)
+      except Exception:
+        # Don't add host if IP address could not be found
+        logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
+
+  # Add only running instances
   inst = []
   for r in res:
     for i in r.instances:
       if i.state == 'running':
-        inst.append(i)
+        if hostnames is None:
+          # Append all
+          inst.append(i)
+        else:
+          found = False
+          for ipv4 in ips:
+            if i.private_ip_address == ipv4:
+              inst.append(i)
+              logging.debug("Found instance corresponding to IP %s" % ipv4)
+              found = True
+              break
+          if not found:
+            logging.warning("Cannot find EC2 VM for IP %s" % ipv4)
 
   return inst
 
@@ -618,6 +644,7 @@ def main():
             hosts_shutdown.append(host)
 
         if len(hosts_shutdown) > 0:
+          logging.info("scaling down")
           ec2_scale_down(hosts_shutdown)
 
     # End of loop
