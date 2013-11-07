@@ -633,6 +633,18 @@ def main():
         if len(hosts_shutdown) > 0:
           ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
 
+        # Scale up to reach the minimum quota, if any
+        min_vms = cf['quota']['min_vms']
+        if min_vms >= 1:
+          rvms = ec2_running_instances(workers_status.keys())
+          if rvms is None:
+            logging.warning("Cannot get list of running instances for honoring min quota of %d" % min_vms)
+          n_vms = min_vms-len(ec2_running_instances(workers_status.keys()))
+          if n_vms > 0:
+            logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
+              (min_vms,n_vms))
+            ec2_scale_up(n_vms, valid_hostnames=workers_status.keys())
+
     #
     # Check queue and start new VMs
     #
