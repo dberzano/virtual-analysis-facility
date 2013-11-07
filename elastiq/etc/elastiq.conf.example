@@ -8,6 +8,10 @@ cmd_start = vmstart.sh
 idle_for_time_s = 3600
 cmd_stop = vmstop.sh
 
+[debug]
+#dry_run_shutdown_vms = 1
+#dry_run_boot_vms = 1
+
 [ec2]
 api_url = https://dummy.ec2.server/ec2/
 aws_access_key_id = my_username

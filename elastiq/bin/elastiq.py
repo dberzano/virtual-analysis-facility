@@ -44,6 +44,12 @@ cf['ec2'] = {
   'aws_secret_access_key': 'my_password',
 
 }
+cf['debug'] = {
+
+  # Set to !0 to dry run
+  'dry_run_shutdown_vms': 0,
+  'dry_run_boot_vms': 0
+}
 
 ec2h = None
 do_main_loop = True
@@ -279,16 +285,20 @@ def ec2_scale_down(hosts):
       if priv_ipv4 == i.private_ip_address:
         # Virtual machine found: turn it off using EC2
         logging.info("Found instance corresponding to HTCondor host %s" % h)
-
-        try:
-          i.terminate()
-          time.sleep(2)
-          i.terminate()  # twice on purpose
-          logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
-        except Exception, e:
-          logging.error("Shutdown via EC2 failed for %s (%s)" % (h,priv_ipv4))
-
         found = True
+
+        if int(cf['debug']['dry_run_shutdown_vms']) == 0:
+          try:
+            i.terminate()
+            time.sleep(2)
+            i.terminate()  # twice on purpose
+            logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
+          except Exception, e:
+            logging.error("Shutdown via EC2 failed for %s (%s)" % (h,priv_ipv4))
+        else:
+          # Dry run
+          logging.info("Not shutting down %s (%s) via EC2: dry run" % (h,priv_ipv4));
+
         break
 
     if not found:
