@@ -13,14 +13,14 @@ import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
 import boto
 import socket
-from time import sleep
 
 
 cf = {}
 cf['elastiq'] = {
 
   # Main loop
-  'sleep_s': 15,
+  'check_queue_every_s': 15,
+  'check_vms_every_s': 45,
 
   # Conditions to start new VMs
   'waiting_jobs_threshold': 10,
@@ -282,7 +282,7 @@ def ec2_scale_down(hosts):
 
         try:
           i.terminate()
-          sleep(2)
+          time.sleep(2)
           i.terminate()  # twice on purpose
           logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
         except Exception, e:
@@ -398,16 +398,30 @@ def main():
     aws_access_key_id=cf['ec2']['aws_access_key_id'],
     aws_secret_access_key=cf['ec2']['aws_secret_access_key'])
 
+  # Check VMs every N loops
+  if cf['elastiq']['check_vms_every_s'] > cf['elastiq']['check_queue_every_s']:
+    check_vm_loops = round( float(cf['elastiq']['check_vms_every_s']) / cf['elastiq']['check_queue_every_s'] )
+    check_vm_sleep = check_vm_loops * cf['elastiq']['check_queue_every_s']
+    if check_vm_sleep != cf['elastiq']['check_vms_every_s']:
+      logging.warning("Checking HTCondor VMs every %d s instead of the configured %d s" % (check_vm_sleep,cf['elastiq']['check_vms_every_s']))
+  else:
+    check_vm_loops = 1 # check every loop
+
   # State variables
   first_time_above_threshold = -1
   workers_status = {}
 
   # Main loop
+  n_loop = 0
   while do_main_loop == True:
+
+    n_loop+=1
 
     #
     # Check queue and start new VMs
     #
+
+    logging.info("Checking HTCondor queue...")
 
     n_waiting_jobs = poll_condor_queue()
     check_time = time.time()
@@ -442,27 +456,32 @@ def main():
     # Check current status and shut down idle VMs
     #
 
-    new_workers_status = poll_condor_status(workers_status)
-    if new_workers_status is not None:
-      #logging.debug(new_workers_status)
-      workers_status = new_workers_status
-      new_workers_status = None
+    if n_loop == check_vm_loops:
 
-      hosts_shutdown = []
-      for host,info in workers_status.iteritems():
-        if info['jobs'] != 0: continue
-        if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
-          logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
-            (host,cf['elastiq']['idle_for_time_s']))
-          workers_status[host]['unchangedsince'] = check_time  # reset timer
-          hosts_shutdown.append(host)
+      n_loop = 0
+      logging.info("Checking HTCondor VMs...")
 
-      if len(hosts_shutdown) > 0:
-        ec2_scale_down(hosts_shutdown)
+      new_workers_status = poll_condor_status(workers_status)
+      if new_workers_status is not None:
+        #logging.debug(new_workers_status)
+        workers_status = new_workers_status
+        new_workers_status = None
+
+        hosts_shutdown = []
+        for host,info in workers_status.iteritems():
+          if info['jobs'] != 0: continue
+          if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
+            logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
+              (host,cf['elastiq']['idle_for_time_s']))
+            workers_status[host]['unchangedsince'] = check_time  # reset timer
+            hosts_shutdown.append(host)
+
+        if len(hosts_shutdown) > 0:
+          ec2_scale_down(hosts_shutdown)
 
     # End of loop
-    logging.info("Sleeping %d seconds" % cf['elastiq']['sleep_s']);
-    time.sleep( cf['elastiq']['sleep_s'] )
+    logging.info("Sleeping %d seconds" % cf['elastiq']['check_queue_every_s']);
+    time.sleep( cf['elastiq']['check_queue_every_s'] )
 
 
 #
