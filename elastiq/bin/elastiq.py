@@ -243,9 +243,9 @@ def scale_down(hosts):
   return n_succ
 
 
-def ec2_instances():
-  """Returns all instances visible with current EC2 credentials, or None on
-  errors. Returned object is a list of boto instances."""
+def ec2_running_instances():
+  """Returns all running instances visible with current EC2 credentials, or
+  None on errors. Returned object is a list of boto instances."""
 
   try:
     res = ec2h.get_all_reservations()
@@ -255,7 +255,10 @@ def ec2_instances():
 
   inst = []
   for r in res:
-    inst += r.instances
+    for i in r.instances:
+      if i.state == 'running':
+        inst.append(i)
+
   return inst
 
 
@@ -273,7 +276,7 @@ def ec2_scale_down(hosts):
 
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
-  inst = ec2_instances()
+  inst = ec2_running_instances()
   if inst is None or len(inst) == 0:
     logging.warning("No list of instances can be retrieved from EC2")
     return 0
