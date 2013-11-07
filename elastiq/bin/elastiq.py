@@ -265,20 +265,30 @@ def ec2_scale_up(nvms, valid_hostnames=None):
   # Launch VMs
   for i in range(1, n_vms_to_start+1):
 
-    try:
-      ec2img.run(
-        key_name=cf['ec2']['key_name'],
-        user_data=cf['ec2']['user_data_b64'],
-        instance_type=cf['ec2']['flavour']
-      )
+    success = False
+    if int(cf['debug']['dry_run_boot_vms']) == 0:
+      try:
+        ec2img.run(
+          key_name=cf['ec2']['key_name'],
+          user_data=cf['ec2']['user_data_b64'],
+          instance_type=cf['ec2']['flavour']
+        )
+        success = True
+      except Exception:
+        logging.error("Cannot run instance via EC2: check your \"hard\" quota")
+
+    else:
+      logging.info("Not running VM: dry run active")
+      success = True
+
+    if success:
       n_succ+=1
       logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % \
         (i, n_vms_to_start, n_succ, n_fail))
-    except Exception:
-      logging.error("Cannot run instance via EC2: check your \"hard\" quota")
+    else:
+      n_fail+=1
       logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % \
         (i, n_vms_to_start, n_succ, n_fail))
-      n_fail+=1
 
   return n_succ
 
