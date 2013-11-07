@@ -14,6 +14,7 @@ from ConfigParser import SafeConfigParser
 import boto
 import socket
 import random
+import base64
 
 
 cf = {}
@@ -68,6 +69,7 @@ cf['debug'] = {
 
 ec2h = None
 ec2img = None
+user_data = None
 do_main_loop = True
 
 
@@ -270,7 +272,7 @@ def ec2_scale_up(nvms, valid_hostnames=None):
       try:
         ec2img.run(
           key_name=cf['ec2']['key_name'],
-          user_data=cf['ec2']['user_data_b64'],
+          user_data=user_data,
           instance_type=cf['ec2']['flavour']
         )
         success = True
@@ -551,7 +553,7 @@ def ec2_image(image_id):
 
 def main():
 
-  global ec2h, ec2img
+  global ec2h, ec2img, user_data
 
   # Configure logging
   lf = log()
@@ -578,6 +580,13 @@ def main():
     logging.error("Cannot find EC2 image \"%s\"", cf['ec2']['image_id'])
   else:
     logging.debug("EC2 image \"%s\" found" % cf['ec2']['image_id'])
+
+  # Un-base64 user-data
+  try:
+    user_data = base64.b64decode(cf['ec2']['user_data_b64'])
+  except TypeError:
+    logging.error("Invalid base64 data for user-data!")
+    user_data = ''
 
   # Check VMs every N loops
   if cf['elastiq']['check_vms_every_s'] > cf['elastiq']['check_queue_every_s']:
