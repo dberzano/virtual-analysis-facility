@@ -286,8 +286,7 @@ def ec2_scale_up(nvms):
 def scale_down(hosts):
   """Invokes the shutdown command for each host on the given list. External
   command should take care of everything. Returns the number of hosts that
-  were asked to shut down correctly.
-  """
+  were asked to shut down correctly."""
 
   n_succ = 0
   n_fail = 0
@@ -341,11 +340,11 @@ def ec2_running_instances(hostnames=None):
           for ipv4 in ips:
             if i.private_ip_address == ipv4:
               inst.append(i)
-              logging.debug("Found instance corresponding to IP %s" % ipv4)
+              logging.debug("Found IP %s corresponding to instance" % ipv4)
               found = True
               break
           if not found:
-            logging.warning("Cannot find EC2 VM for IP %s" % ipv4)
+            logging.warning("Cannot find instance %s in the list of known IPs" % i.private_ip_address)
 
   return inst
 
@@ -364,35 +363,11 @@ def ec2_scale_down(hosts):
 
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
-  inst = ec2_running_instances()
-  if inst is None or len(inst) == 0:
+  # List EC2 instances with the given hostnames
+  valid_instances = ec2_running_instances(hosts)
+  if valid_instances is None or len(valid_instances) == 0:
     logging.warning("No list of instances can be retrieved from EC2")
     return 0
-
-  # Find valid hosts -- i.e., hosts having a corresponding running VM
-  valid_instances = []
-  for h in hosts:
-
-    # Find host's IPv4
-    try:
-      priv_ipv4 = socket.gethostbyname(h)
-    except Exception:
-      # Don't add host if IP address could not be found
-      logging.warning("Ignoring HTCondor host %s: can't reslove IPv4 address" % h)
-      continue
-
-    # Find IP in instances list
-    found = False
-    for i in inst:
-      if priv_ipv4 == i.private_ip_address:
-        # Virtual machine found: turn it off using EC2
-        logging.debug("Found instance corresponding to HTCondor host %s" % h)
-        valid_instances.append(i)
-        found = True
-        break
-
-    if not found:
-      logging.warning("Cannot find EC2 VM for HTCondor host %s (%s)" % (h,priv_ipv4))
 
   # Print number of valid instances
   logging.debug("%d valid instances found", len(valid_instances))
@@ -410,13 +385,13 @@ def ec2_scale_down(hosts):
         i.terminate()
         time.sleep(1)
         i.terminate()  # twice on purpose
-        logging.debug("Shutdown via EC2 of %s succeeded" % priv_ipv4)
+        logging.debug("Shutdown via EC2 of %s succeeded" % i.private_ip_address)
         success = True
       except Exception, e:
-        logging.error("Shutdown via EC2 failed for %s" % priv_ipv4)
+        logging.error("Shutdown via EC2 failed for %s" % i.private_ip_address)
     else:
       # Dry run
-      logging.debug("Not shutting down %s via EC2: dry run" % priv_ipv4);
+      logging.debug("Not shutting down %s via EC2: dry run" % i.private_ip_address);
       success = True
 
     # Messages
@@ -644,7 +619,6 @@ def main():
             hosts_shutdown.append(host)
 
         if len(hosts_shutdown) > 0:
-          logging.info("scaling down")
           ec2_scale_down(hosts_shutdown)
 
     # End of loop
