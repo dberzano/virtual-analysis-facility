@@ -20,3 +20,7 @@ max_vms = 3
 api_url = https://dummy.ec2.server/ec2/
 aws_access_key_id = my_username
 aws_secret_access_key = my_password
+image_id = ami-00000000
+key_name = 
+flavour = 
+user_data_b64 = 

@@ -44,6 +44,12 @@ cf['ec2'] = {
   'aws_access_key_id': 'my_username',
   'aws_secret_access_key': 'my_password',
 
+  # VM configuration
+  'image_id': 'ami-00000000',
+  'key_name': '',
+  'flavour': '',
+  'user_data_b64': ''
+
 }
 cf['quota'] = {
 
@@ -61,6 +67,7 @@ cf['debug'] = {
 }
 
 ec2h = None
+ec2img = None
 do_main_loop = True
 
 
@@ -217,6 +224,61 @@ def scale_up(nvms):
     else:
       n_fail+=1
       logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
+
+  return n_succ
+
+
+def ec2_scale_up(nvms):
+  """Requests a certain number of VMs using the EC2 API. Returns the number of
+  VMs launched successfully."""
+
+  global ec2img
+
+  # Try to get image if necessary
+  if ec2img is None:
+    ec2img = ec2_image(cf['ec2']['image_id'])
+    if ec2img is None:
+      logging.error("Cannot scale up: image id %s not found" % ec2_image(cf['ec2']['image_id']))
+      return 0
+
+  n_succ = 0
+  n_fail = 0
+  logging.info("We need %d more VMs..." % nvms)
+
+  inst = ec2_running_instances()
+  if inst is None or len(inst) == 0:
+    logging.error("No list of instances can be retrieved from EC2")
+    return 0
+
+  n_running_vms = len(inst)
+  if cf['quota']['max_vms'] >= 1:
+    # We have a "soft" quota: respect it
+    n_vms_to_start = int(min(nvms, cf['quota']['max_vms']-n_running_vms))
+    if n_vms_to_start <= 0:
+      logging.warning("Over quota (%d VMs running out of %d): cannot launch any more VMs" % \
+        (n_running_vms,cf['quota']['max_vms']))
+    else:
+      logging.warning("Quota enabled: requesting %d/%d VMs" % (n_vms_to_start,nvms))
+  else:
+    n_vms_to_start = int(nvms)
+
+  # Launch VMs
+  for i in range(1, n_vms_to_start+1):
+
+    try:
+      ec2img.run(
+        key_name=cf['ec2']['key_name'],
+        user_data=cf['ec2']['user_data_b64'],
+        instance_type=cf['ec2']['flavour']
+      )
+      n_succ+=1
+      logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % \
+        (i, n_vms_to_start, n_succ, n_fail))
+    except Exception:
+      logging.error("Cannot run instance via EC2: check your \"hard\" quota")
+      logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % \
+        (i, n_vms_to_start, n_succ, n_fail))
+      n_fail+=1
 
   return n_succ
 
@@ -427,9 +489,29 @@ def poll_condor_status(current_workers_status):
   return workers_status
 
 
+def ec2_image(image_id):
+  """Returns a boto Image object containing the image corresponding to a
+  certain image AMI ID, or None if not found or problems occurred."""
+
+  found = False
+  img = None
+  try:
+    for img in ec2h.get_all_images():
+      if img.id == cf['ec2']['image_id']:
+        found = True
+        break
+  except Exception:
+    logging.error("Cannot make EC2 connection to retrieve image info!")
+
+  if not found:
+    return None
+
+  return img
+
+
 def main():
 
-  global ec2h
+  global ec2h, ec2img
 
   # Configure logging
   lf = log()
@@ -449,6 +531,13 @@ def main():
     cf['ec2']['api_url'],
     aws_access_key_id=cf['ec2']['aws_access_key_id'],
     aws_secret_access_key=cf['ec2']['aws_secret_access_key'])
+
+  # Initialize EC2 image
+  ec2img = ec2_image(cf['ec2']['image_id'])
+  if ec2img is None:
+    logging.error("Cannot find EC2 image \"%s\"", cf['ec2']['image_id'])
+  else:
+    logging.debug("EC2 image \"%s\" found" % cf['ec2']['image_id'])
 
   # Check VMs every N loops
   if cf['elastiq']['check_vms_every_s'] > cf['elastiq']['check_queue_every_s']:
@@ -485,7 +574,7 @@ def main():
             # Above threshold time-wise and jobs-wise: do something
             logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
               (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
-            scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])) )
+            ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])) )
             first_time_above_threshold = -1
           else:
             # Above threshold but not for enough time
