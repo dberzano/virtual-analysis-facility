@@ -228,7 +228,7 @@ def scale_up(nvms):
   return n_succ
 
 
-def ec2_scale_up(nvms):
+def ec2_scale_up(nvms, valid_hostnames=None):
   """Requests a certain number of VMs using the EC2 API. Returns the number of
   VMs launched successfully."""
 
@@ -245,7 +245,7 @@ def ec2_scale_up(nvms):
   n_fail = 0
   logging.info("We need %d more VMs..." % nvms)
 
-  inst = ec2_running_instances()
+  inst = ec2_running_instances(valid_hostnames)
   if inst is None or len(inst) == 0:
     logging.error("No list of instances can be retrieved from EC2")
     return 0
@@ -255,10 +255,10 @@ def ec2_scale_up(nvms):
     # We have a "soft" quota: respect it
     n_vms_to_start = int(min(nvms, cf['quota']['max_vms']-n_running_vms))
     if n_vms_to_start <= 0:
-      logging.warning("Over quota (%d VMs running out of %d): cannot launch any more VMs" % \
+      logging.warning("Over quota (%d VMs already running out of %d): cannot launch any more VMs" % \
         (n_running_vms,cf['quota']['max_vms']))
     else:
-      logging.warning("Quota enabled: requesting %d/%d VMs" % (n_vms_to_start,nvms))
+      logging.warning("Quota enabled: requesting %d (out of desired %d) VMs" % (n_vms_to_start,nvms))
   else:
     n_vms_to_start = int(nvms)
 
@@ -398,7 +398,7 @@ def ec2_scale_down(hosts, valid_hostnames=None):
   # Iterate and shutdown
   vms_to_shutdown = len(inst)-cf['quota']['min_vms']  # honor quota!
   if vms_to_shutdown <= 0:
-    logging.info("Not shutting down any VM due to minimum quota of %d" % cf['quota']['min_vms'])
+    logging.info("Not shutting down any VM to honor the minimum quota of %d" % cf['quota']['min_vms'])
 
   else:
 
@@ -585,16 +585,40 @@ def main():
   n_loop = 0
   while do_main_loop == True:
 
-    n_loop+=1
+    check_time = time.time()
+
+    #
+    # Check current status and shut down idle VMs
+    #
+
+    if n_loop == 0:
+
+      logging.info("Checking HTCondor VMs...")
+      new_workers_status = poll_condor_status(workers_status)
+
+      if new_workers_status is not None:
+        #logging.debug(new_workers_status)
+        workers_status = new_workers_status
+        new_workers_status = None
+
+        hosts_shutdown = []
+        for host,info in workers_status.iteritems():
+          if info['jobs'] != 0: continue
+          if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
+            logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
+              (host,cf['elastiq']['idle_for_time_s']))
+            workers_status[host]['unchangedsince'] = check_time  # reset timer
+            hosts_shutdown.append(host)
+
+        if len(hosts_shutdown) > 0:
+          ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
 
     #
     # Check queue and start new VMs
     #
 
     logging.info("Checking HTCondor queue...")
-
     n_waiting_jobs = poll_condor_queue()
-    check_time = time.time()
 
     if n_waiting_jobs != -1:
       if n_waiting_jobs > cf['elastiq']['waiting_jobs_threshold']:
@@ -603,7 +627,7 @@ def main():
             # Above threshold time-wise and jobs-wise: do something
             logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
               (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
-            ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])) )
+            ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])), valid_hostnames=workers_status.keys() )
             first_time_above_threshold = -1
           else:
             # Above threshold but not for enough time
@@ -622,34 +646,11 @@ def main():
     else:
       logging.error("Cannot get the number of waiting jobs this time, sorry")
 
-    #
-    # Check current status and shut down idle VMs
-    #
-
-    if n_loop == check_vm_loops:
-
-      n_loop = 0
-      logging.info("Checking HTCondor VMs...")
-
-      new_workers_status = poll_condor_status(workers_status)
-      if new_workers_status is not None:
-        #logging.debug(new_workers_status)
-        workers_status = new_workers_status
-        new_workers_status = None
-
-        hosts_shutdown = []
-        for host,info in workers_status.iteritems():
-          if info['jobs'] != 0: continue
-          if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
-            logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
-              (host,cf['elastiq']['idle_for_time_s']))
-            workers_status[host]['unchangedsince'] = check_time  # reset timer
-            hosts_shutdown.append(host)
-
-        if len(hosts_shutdown) > 0:
-          ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
-
     # End of loop
+    n_loop+=1
+    if n_loop == check_vm_loops:
+      n_loop = 0
+
     logging.info("Sleeping %d seconds" % cf['elastiq']['check_queue_every_s']);
     time.sleep( cf['elastiq']['check_queue_every_s'] )
 
