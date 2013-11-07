@@ -313,25 +313,36 @@ def ec2_scale_down(hosts):
   random.shuffle(valid_instances)
 
   # Iterate and shutdown
+  vms_to_shutdown = len(valid_instances)-cf['quota']['min_vms']
   for i in valid_instances:
 
+    success = False
     if int(cf['debug']['dry_run_shutdown_vms']) == 0:
       try:
         i.terminate()
         time.sleep(1)
         i.terminate()  # twice on purpose
-        logging.info("Shutdown via EC2 of %s succeeded" % priv_ipv4)
-        n_succ+=1
+        logging.debug("Shutdown via EC2 of %s succeeded" % priv_ipv4)
+        success = True
       except Exception, e:
         logging.error("Shutdown via EC2 failed for %s" % priv_ipv4)
-        n_fail+=1
     else:
       # Dry run
-      logging.info("Not shutting down %s via EC2: dry run" % priv_ipv4);
+      logging.debug("Not shutting down %s via EC2: dry run" % priv_ipv4);
+      success = True
+
+    # Messages
+    if success:
       n_succ+=1
+      logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d/%d | Failed: %d" % \
+        (n_succ+n_fail, len(valid_instances), n_succ, vms_to_shutdown, n_fail))
+    else:
+      n_fail+=1
+      logging.info("VM shutdown request fail. Requested: %d/%d | Success: %d/%d | Failed: %d" % \
+        (n_succ+n_fail, len(valid_instances), n_succ, vms_to_shutdown, n_fail))
 
     # Check min quota
-    if n_succ == len(valid_instances)-cf['quota']['min_vms']:
+    if n_succ == vms_to_shutdown:
       logging.info("Maintainig quota of minimum %d VM(s) running", cf['quota']['min_vms'])
       break
 
