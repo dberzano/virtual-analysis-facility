@@ -572,26 +572,26 @@ function Actions() {
   fi
 
   Exec 'Getting public IP and FQDN' ConfigIpHost
-  # Exec 'What is my environment?' -v env
+  Exec 'What is my environment?' -v env
 
-  # Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
-  # Exec 'Another temporary fix for Condor' ConfigCondorHotfix
-  # Exec 'Config yum proxy' ConfigYumProxy
-  # Exec 'Replacing Bash prompt' ConfigBashPrompt
-  # Exec 'Mounting shared NFS software area' ConfigNfs
+  Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
+  Exec 'Another temporary fix for Condor' ConfigCondorHotfix
+  Exec 'Config yum proxy' ConfigYumProxy
+  Exec 'Replacing Bash prompt' ConfigBashPrompt
+  Exec 'Mounting shared NFS software area' ConfigNfs
 
-  # case "$VafConf_AuthMethod" in
-  #   alice_ldap)
-  #     Exec 'Configuring LDAP for ALICE users' ConfigAliceUsers
-  #   ;;
-  #   pool_users)
-  #     Exec 'Adding pool accounts' ConfigPoolAccounts
-  #   ;;
-  # esac
+  case "$VafConf_AuthMethod" in
+    alice_ldap)
+      Exec 'Configuring LDAP for ALICE users' ConfigAliceUsers
+    ;;
+    pool_users)
+      Exec 'Adding pool accounts' ConfigPoolAccounts
+    ;;
+  esac
 
   if [ $Master == 1 ] ; then
-    # Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
-    # Exec 'Installing boto' -v ConfigBoto
+    Exec 'Configuring sshcertauth' ConfigSshcertauth "$VafConf_AuthMethod"
+    Exec 'Installing boto' -v ConfigBoto
     Exec 'Configuring elastiq' -v ConfigElastiq
   fi
 
