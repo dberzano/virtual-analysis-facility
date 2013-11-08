@@ -119,8 +119,10 @@ function status() {
 
 # Enter elastiq screen
 function enter_screen() {
+  local SN="$elastiqScreenName"
   if status ; then
-    screen -r "$elastiqUser/$elastiqScreenName"
+    [ $(whoami) != "$elastiqUser" ] && SN="$elastiqUser/$SN"
+    screen -r "$SN"
     return $?
   fi
   return 1
@@ -151,7 +153,7 @@ function start() {
   echo -n "$LastMsg"
   if [ $Rv == 0 ] ; then
     touch "$Lock" 2> /dev/null
-    chown "$elastiqUser" "$Lock"
+    chown "$elastiqUser" "$Lock" 2> /dev/null
     success
   else
     failure
