@@ -471,8 +471,8 @@ _EoF_
   # Default parts
   cat >> "$Cfg" <<_EoF_
 [elastiq]
-check_queue_every_s = 20
-check_vms_every_s = 60
+check_queue_every_s = 60
+check_vms_every_s = 600
 waiting_jobs_threshold = 10
 waiting_jobs_time_s = 100
 idle_for_time_s = 1800
