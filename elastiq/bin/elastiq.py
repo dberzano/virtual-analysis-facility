@@ -248,7 +248,7 @@ def ec2_scale_up(nvms, valid_hostnames=None):
   logging.info("We need %d more VMs..." % nvms)
 
   inst = ec2_running_instances(valid_hostnames)
-  if inst is None or len(inst) == 0:
+  if inst is None:
     logging.error("No list of instances can be retrieved from EC2")
     return 0
 
