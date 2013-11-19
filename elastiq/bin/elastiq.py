@@ -206,30 +206,6 @@ def robust_cmd(params, max_attempts=5, suppress_stderr=True):
     return None
 
 
-def scale_up(nvms):
-  """Invokes an external command to launch more Virtual Machines. The number of
-  VMs is specified as parameter.
-  Returns the number of launched VMs.
-  """
-
-  nvms = int(nvms)
-  n_succ = 0
-  n_fail = 0
-  logging.info("Launching %d new VMs..." % nvms)
-
-  for i in range(1, nvms+1):
-    #ret = robust_cmd([ 'echo', str(i), cf['elastiq']['cmd_start'] ], suppress_stderr=False, max_attempts=2)
-    ret = robust_cmd([ cf['elastiq']['cmd_start'] ], max_attempts=1)
-    if ret and 'output' in ret:
-      n_succ+=1
-      logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
-    else:
-      n_fail+=1
-      logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % (i, nvms, n_succ, n_fail))
-
-  return n_succ
-
-
 def ec2_scale_up(nvms, valid_hostnames=None):
   """Requests a certain number of VMs using the EC2 API. Returns the number of
   VMs launched successfully. Note: max_quota is honored by checking the *total*
@@ -294,27 +270,6 @@ def ec2_scale_up(nvms, valid_hostnames=None):
       n_fail+=1
       logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % \
         (i, n_vms_to_start, n_succ, n_fail))
-
-  return n_succ
-
-
-def scale_down(hosts):
-  """Invokes the shutdown command for each host on the given list. External
-  command should take care of everything. Returns the number of hosts that
-  were asked to shut down correctly."""
-
-  n_succ = 0
-  n_fail = 0
-  logging.info("Requesting shutdown of %d VMs..." % len(hosts))
-
-  for h in hosts:
-    ret = robust_cmd([ cf['elastiq']['cmd_stop'], h ], max_attempts=3)
-    if ret and 'exitcode' in ret and ret['exitcode'] == 0:
-      n_succ+=1
-      logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
-    else:
-      n_fail+=1
-      logging.info("VM shutdown request fail. Requested: %d/%d | Success: %d | Failed: %d" % (n_succ+n_fail, len(hosts), n_succ, n_fail))
 
   return n_succ
 
@@ -473,7 +428,8 @@ def poll_condor_queue():
 
 def poll_condor_status(current_workers_status):
   """Polls HTCondor for the list of workers with the number of running jobs
-  per worker. Returns [...]"""
+  per worker. Returns an array of hosts, each one of them has a parameter that
+  indicates the number of running jobs."""
 
   ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=2)
   if ret is None or 'output' not in ret:
