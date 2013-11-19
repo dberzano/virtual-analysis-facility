@@ -11,6 +11,10 @@
 #   VafConf_NodeType
 #   VafConf_NumPoolAccounts
 #
+# For Elastiq configuration file:
+#
+#   VafConf_Elastiq_<sectionname>_<keyname>
+#
 
 #
 # System configuration variables
@@ -494,7 +498,7 @@ _EoF_
   # Create user-data for slave
   echo -e -n "[ec2]\nuser_data_b64 = " >> "$Cfg"
   cat "$AMICONFIG_LOCAL_USER_DATA" | \
-    sed -e 's|\(\[condor\]\)|\1\ncondor_master='$PrivIp'|g' | \
+    sed -e 's|\(\[condor\]\)|\1\ncondor_master='$PrivIp'|g ; s|\(\s*VafConf_NodeType=\).*$|\1slave|g' | \
     base64 -w0 >> "$Cfg"
   echo -e -n "\n\n" >> "$Cfg"
 
