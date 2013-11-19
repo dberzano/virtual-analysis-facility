@@ -232,7 +232,10 @@ def scale_up(nvms):
 
 def ec2_scale_up(nvms, valid_hostnames=None):
   """Requests a certain number of VMs using the EC2 API. Returns the number of
-  VMs launched successfully."""
+  VMs launched successfully. Note: max_quota is honored by checking the *total*
+  number of running VMs, and not only the ones recognized by HTCondor. This is
+  done on purpose to avoid overflowing the cloud (possibly a non-free one) with
+  misconfigured VMs that don't join the HTCondor cluster."""
 
   global ec2img
 
@@ -252,7 +255,7 @@ def ec2_scale_up(nvms, valid_hostnames=None):
     logging.error("No list of instances can be retrieved from EC2")
     return 0
 
-  n_running_vms = len(inst)
+  n_running_vms = len(inst)  # number of *total* VMs running (also the ones *not* owned by HTCondor)
   if cf['quota']['max_vms'] >= 1:
     # We have a "soft" quota: respect it
     n_vms_to_start = int(min(nvms, cf['quota']['max_vms']-n_running_vms))
@@ -364,7 +367,10 @@ def ec2_running_instances(hostnames=None):
 def ec2_scale_down(hosts, valid_hostnames=None):
   """Asks the Cloud to shutdown hosts corresponding to the given hostnames
   by using the EC2 interface. Returns the number of hosts successfully shut
-  down."""
+  down. Note: minimum number of VMs is honored by considering, as number of
+  currently running VMs, the sole VMs known by HTCondor. This behavior is
+  different than what we do for the maximum quota, where we take into account
+  all the running VMs to avoid cloud overflowing."""
 
   n_succ = 0
   n_fail = 0
@@ -387,7 +393,7 @@ def ec2_scale_down(hosts, valid_hostnames=None):
     try:
       ips.append( socket.gethostbyname(h) )
     except Exception:
-      logging.warning("Cannot find IP for host to shut down %s: skiped" % h)
+      logging.warning("Cannot find IP for host to shut down %s: skipped" % h)
 
   # Now filter out only instances to shutdown
   inst_shutdown = []
@@ -408,7 +414,7 @@ def ec2_scale_down(hosts, valid_hostnames=None):
   random.shuffle(inst_shutdown)
 
   # Iterate and shutdown
-  vms_to_shutdown = len(inst)-cf['quota']['min_vms']  # honor quota!
+  vms_to_shutdown = len(inst_shutdown)-cf['quota']['min_vms']  # honor quota!
   if vms_to_shutdown <= 0:
     logging.info("Not shutting down any VM to honor the minimum quota of %d" % cf['quota']['min_vms'])
 
