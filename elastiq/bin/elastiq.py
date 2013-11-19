@@ -13,14 +13,16 @@ import xml.etree.ElementTree as ET
 from ConfigParser import SafeConfigParser
 import boto
 import socket
-from time import sleep
+import random
+import base64
 
 
 cf = {}
 cf['elastiq'] = {
 
   # Main loop
-  'sleep_s': 15,
+  'check_queue_every_s': 15,
+  'check_vms_every_s': 45,
 
   # Conditions to start new VMs
   'waiting_jobs_threshold': 10,
@@ -43,9 +45,31 @@ cf['ec2'] = {
   'aws_access_key_id': 'my_username',
   'aws_secret_access_key': 'my_password',
 
+  # VM configuration
+  'image_id': 'ami-00000000',
+  'key_name': '',
+  'flavour': '',
+  'user_data_b64': ''
+
+}
+cf['quota'] = {
+
+  # Min and max VMs
+  'min_vms': 0,
+  'max_vms': 3
+
+}
+cf['debug'] = {
+
+  # Set to !0 to dry run
+  'dry_run_shutdown_vms': 0,
+  'dry_run_boot_vms': 0
+
 }
 
 ec2h = None
+ec2img = None
+user_data = None
 do_main_loop = True
 
 
@@ -206,11 +230,75 @@ def scale_up(nvms):
   return n_succ
 
 
+def ec2_scale_up(nvms, valid_hostnames=None):
+  """Requests a certain number of VMs using the EC2 API. Returns the number of
+  VMs launched successfully."""
+
+  global ec2img
+
+  # Try to get image if necessary
+  if ec2img is None:
+    ec2img = ec2_image(cf['ec2']['image_id'])
+    if ec2img is None:
+      logging.error("Cannot scale up: image id %s not found" % ec2_image(cf['ec2']['image_id']))
+      return 0
+
+  n_succ = 0
+  n_fail = 0
+  logging.info("We need %d more VMs..." % nvms)
+
+  inst = ec2_running_instances(valid_hostnames)
+  if inst is None:
+    logging.error("No list of instances can be retrieved from EC2")
+    return 0
+
+  n_running_vms = len(inst)
+  if cf['quota']['max_vms'] >= 1:
+    # We have a "soft" quota: respect it
+    n_vms_to_start = int(min(nvms, cf['quota']['max_vms']-n_running_vms))
+    if n_vms_to_start <= 0:
+      logging.warning("Over quota (%d VMs already running out of %d): cannot launch any more VMs" % \
+        (n_running_vms,cf['quota']['max_vms']))
+    else:
+      logging.warning("Quota enabled: requesting %d (out of desired %d) VMs" % (n_vms_to_start,nvms))
+  else:
+    n_vms_to_start = int(nvms)
+
+  # Launch VMs
+  for i in range(1, n_vms_to_start+1):
+
+    success = False
+    if int(cf['debug']['dry_run_boot_vms']) == 0:
+      try:
+        ec2img.run(
+          key_name=cf['ec2']['key_name'],
+          user_data=user_data,
+          instance_type=cf['ec2']['flavour']
+        )
+        success = True
+      except Exception:
+        logging.error("Cannot run instance via EC2: check your \"hard\" quota")
+
+    else:
+      logging.info("Not running VM: dry run active")
+      success = True
+
+    if success:
+      n_succ+=1
+      logging.info("VM launched OK. Requested: %d/%d | Success: %d | Failed: %d" % \
+        (i, n_vms_to_start, n_succ, n_fail))
+    else:
+      n_fail+=1
+      logging.info("VM launch fail. Requested: %d/%d | Success: %d | Failed: %d" % \
+        (i, n_vms_to_start, n_succ, n_fail))
+
+  return n_succ
+
+
 def scale_down(hosts):
   """Invokes the shutdown command for each host on the given list. External
   command should take care of everything. Returns the number of hosts that
-  were asked to shut down correctly.
-  """
+  were asked to shut down correctly."""
 
   n_succ = 0
   n_fail = 0
@@ -228,9 +316,11 @@ def scale_down(hosts):
   return n_succ
 
 
-def ec2_instances():
-  """Returns all instances visible with current EC2 credentials, or None on
-  errors. Returned object is a list of boto instances."""
+def ec2_running_instances(hostnames=None):
+  """Returns all running instances visible with current EC2 credentials, or
+  None on errors. If hostnames is specified, it returns the sole running
+  instances whose IP address matches the resolved input hostnames. Returned
+  object is a list of boto instances."""
 
   try:
     res = ec2h.get_all_reservations()
@@ -238,13 +328,40 @@ def ec2_instances():
     logging.error("Can't get list of EC2 instances (maybe wrong credentials?)")
     return None
 
+  # Resolve IPs
+  if hostnames is not None:
+    ips = []
+    for h in hostnames:
+      try:
+        ipv4 = socket.gethostbyname(h)
+        ips.append(ipv4)
+      except Exception:
+        # Don't add host if IP address could not be found
+        logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
+
+  # Add only running instances
   inst = []
   for r in res:
-    inst += r.instances
+    for i in r.instances:
+      if i.state == 'running':
+        if hostnames is None:
+          # Append all
+          inst.append(i)
+        else:
+          found = False
+          for ipv4 in ips:
+            if i.private_ip_address == ipv4:
+              inst.append(i)
+              logging.debug("Found IP %s corresponding to instance" % ipv4)
+              found = True
+              break
+          if not found:
+            logging.warning("Cannot find instance %s in the list of known IPs" % i.private_ip_address)
+
   return inst
 
 
-def ec2_scale_down(hosts):
+def ec2_scale_down(hosts, valid_hostnames=None):
   """Asks the Cloud to shutdown hosts corresponding to the given hostnames
   by using the EC2 interface. Returns the number of hosts successfully shut
   down."""
@@ -258,41 +375,80 @@ def ec2_scale_down(hosts):
 
   logging.info("Requesting shutdown of %d VMs..." % len(hosts))
 
-  inst = ec2_instances()
+  # List EC2 instances with the "valid" hostnames
+  inst = ec2_running_instances(valid_hostnames)
   if inst is None or len(inst) == 0:
     logging.warning("No list of instances can be retrieved from EC2")
     return 0
 
+  # Resolve hostnames
+  ips = []
   for h in hosts:
-
-    # Find host's IPv4
     try:
-      priv_ipv4 = socket.gethostbyname(h)
+      ips.append( socket.gethostbyname(h) )
     except Exception:
-      # Don't add host if IP address could not be found
-      logging.warning("Ignoring HTCondor host %s: can't reslove IPv4 address" % h)
-      continue
+      logging.warning("Cannot find IP for host to shut down %s: skiped" % h)
 
-    # Find IP in instances list
-    found = False
+  # Now filter out only instances to shutdown
+  inst_shutdown = []
+  for ip in ips:
     for i in inst:
-      if priv_ipv4 == i.private_ip_address:
-        # Virtual machine found: turn it off using EC2
-        logging.info("Found instance corresponding to HTCondor host %s" % h)
-
-        try:
-          i.terminate()
-          sleep(2)
-          i.terminate()  # twice on purpose
-          logging.info("Shutdown via EC2 of %s (%s) succeeded" % (h,priv_ipv4))
-        except Exception, e:
-          logging.error("Shutdown via EC2 failed for %s (%s)" % (h,priv_ipv4))
-
+      found = False
+      if i.private_ip_address == ip:
+        inst_shutdown.append(i)
         found = True
         break
-
     if not found:
-      logging.warning("Cannot find EC2 VM for HTCondor host %s (%s)" % (h,priv_ipv4))
+      logging.warning("Cannot find instance for IP to shut down %s: skipped" % ip)
+
+  # Print number of all valid instances
+  logging.debug("%d/%d total valid instances to shutdown found" % (len(inst_shutdown),len(inst)))
+
+  # Shuffle the list
+  random.shuffle(inst_shutdown)
+
+  # Iterate and shutdown
+  vms_to_shutdown = len(inst)-cf['quota']['min_vms']  # honor quota!
+  if vms_to_shutdown <= 0:
+    logging.info("Not shutting down any VM to honor the minimum quota of %d" % cf['quota']['min_vms'])
+
+  else:
+
+    logging.info("Shutting down %d (out of %d) VMs due to minimum quota of %d" % \
+      (vms_to_shutdown, len(inst_shutdown), cf['quota']['min_vms']))
+
+    for i in inst_shutdown:
+
+      ipv4 = i.private_ip_address
+      success = False
+      if int(cf['debug']['dry_run_shutdown_vms']) == 0:
+        try:
+          i.terminate()
+          time.sleep(1)
+          i.terminate()  # twice on purpose
+          logging.debug("Shutdown via EC2 of %s succeeded" % ipv4)
+          success = True
+        except Exception, e:
+          logging.error("Shutdown via EC2 failed for %s" % ipv4)
+      else:
+        # Dry run
+        logging.debug("Not shutting down %s via EC2: dry run" % ipv4);
+        success = True
+
+      # Messages
+      if success:
+        n_succ+=1
+        logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % \
+          (n_succ+n_fail, vms_to_shutdown, n_succ, n_fail))
+      else:
+        n_fail+=1
+        logging.info("VM shutdown request fail. Requested: %d/%d | Success: %d | Failed: %d" % \
+          (n_succ+n_fail, vms_to_shutdown, n_succ, n_fail))
+
+      # Check min quota
+      if n_succ == vms_to_shutdown:
+        #logging.info("Maintainig quota of minimum %d VM(s) running", cf['quota']['min_vms'])
+        break
 
   return n_succ
 
@@ -375,9 +531,29 @@ def poll_condor_status(current_workers_status):
   return workers_status
 
 
+def ec2_image(image_id):
+  """Returns a boto Image object containing the image corresponding to a
+  certain image AMI ID, or None if not found or problems occurred."""
+
+  found = False
+  img = None
+  try:
+    for img in ec2h.get_all_images():
+      if img.id == cf['ec2']['image_id']:
+        found = True
+        break
+  except Exception:
+    logging.error("Cannot make EC2 connection to retrieve image info!")
+
+  if not found:
+    return None
+
+  return img
+
+
 def main():
 
-  global ec2h
+  global ec2h, ec2img, user_data
 
   # Configure logging
   lf = log()
@@ -398,19 +574,84 @@ def main():
     aws_access_key_id=cf['ec2']['aws_access_key_id'],
     aws_secret_access_key=cf['ec2']['aws_secret_access_key'])
 
+  # Initialize EC2 image
+  ec2img = ec2_image(cf['ec2']['image_id'])
+  if ec2img is None:
+    logging.error("Cannot find EC2 image \"%s\"", cf['ec2']['image_id'])
+  else:
+    logging.debug("EC2 image \"%s\" found" % cf['ec2']['image_id'])
+
+  # Un-base64 user-data
+  try:
+    user_data = base64.b64decode(cf['ec2']['user_data_b64'])
+  except TypeError:
+    logging.error("Invalid base64 data for user-data!")
+    user_data = ''
+
+  # Check VMs every N loops
+  if cf['elastiq']['check_vms_every_s'] > cf['elastiq']['check_queue_every_s']:
+    check_vm_loops = round( float(cf['elastiq']['check_vms_every_s']) / cf['elastiq']['check_queue_every_s'] )
+    check_vm_sleep = check_vm_loops * cf['elastiq']['check_queue_every_s']
+    if check_vm_sleep != cf['elastiq']['check_vms_every_s']:
+      logging.warning("Checking HTCondor VMs every %d s instead of the configured %d s" % (check_vm_sleep,cf['elastiq']['check_vms_every_s']))
+  else:
+    check_vm_loops = 1 # check every loop
+
   # State variables
   first_time_above_threshold = -1
   workers_status = {}
 
   # Main loop
+  n_loop = 0
   while do_main_loop == True:
+
+    check_time = time.time()
+
+    #
+    # Check current status and shut down idle VMs
+    #
+
+    if n_loop == 0:
+
+      logging.info("Checking HTCondor VMs...")
+      new_workers_status = poll_condor_status(workers_status)
+
+      if new_workers_status is not None:
+        #logging.debug(new_workers_status)
+        workers_status = new_workers_status
+        new_workers_status = None
+
+        hosts_shutdown = []
+        for host,info in workers_status.iteritems():
+          if info['jobs'] != 0: continue
+          if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
+            logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
+              (host,cf['elastiq']['idle_for_time_s']))
+            workers_status[host]['unchangedsince'] = check_time  # reset timer
+            hosts_shutdown.append(host)
+
+        if len(hosts_shutdown) > 0:
+          ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
+
+        # Scale up to reach the minimum quota, if any
+        min_vms = cf['quota']['min_vms']
+        if min_vms >= 1:
+          rvms = ec2_running_instances(workers_status.keys())
+          if rvms is None:
+            logging.warning("Cannot get list of running instances for honoring min quota of %d" % min_vms)
+          else:
+            n_vms = min_vms-len(rvms)
+            if n_vms > 0:
+              logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
+                (min_vms,n_vms))
+              ec2_scale_up(n_vms, valid_hostnames=workers_status.keys())
 
     #
     # Check queue and start new VMs
     #
 
+    logging.info("Checking HTCondor queue...")
     n_waiting_jobs = poll_condor_queue()
-    check_time = time.time()
 
     if n_waiting_jobs != -1:
       if n_waiting_jobs > cf['elastiq']['waiting_jobs_threshold']:
@@ -419,7 +660,7 @@ def main():
             # Above threshold time-wise and jobs-wise: do something
             logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
               (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
-            scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])) )
+            ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])), valid_hostnames=workers_status.keys() )
             first_time_above_threshold = -1
           else:
             # Above threshold but not for enough time
@@ -438,31 +679,13 @@ def main():
     else:
       logging.error("Cannot get the number of waiting jobs this time, sorry")
 
-    #
-    # Check current status and shut down idle VMs
-    #
-
-    new_workers_status = poll_condor_status(workers_status)
-    if new_workers_status is not None:
-      #logging.debug(new_workers_status)
-      workers_status = new_workers_status
-      new_workers_status = None
-
-      hosts_shutdown = []
-      for host,info in workers_status.iteritems():
-        if info['jobs'] != 0: continue
-        if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
-          logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
-            (host,cf['elastiq']['idle_for_time_s']))
-          workers_status[host]['unchangedsince'] = check_time  # reset timer
-          hosts_shutdown.append(host)
-
-      if len(hosts_shutdown) > 0:
-        ec2_scale_down(hosts_shutdown)
-
     # End of loop
-    logging.info("Sleeping %d seconds" % cf['elastiq']['sleep_s']);
-    time.sleep( cf['elastiq']['sleep_s'] )
+    n_loop+=1
+    if n_loop == check_vm_loops:
+      n_loop = 0
+
+    logging.info("Sleeping %d seconds" % cf['elastiq']['check_queue_every_s']);
+    time.sleep( cf['elastiq']['check_queue_every_s'] )
 
 
 #

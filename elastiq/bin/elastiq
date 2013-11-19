@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Author: Dario Berzano <dario.berzano@cern.ch> -- http://github.com/dberzano/virtual-analysis-facility
+#
 # elastiq:      Starts and stops the elastiq HTCondor queue monitor
 #
 # chkconfig: - 99 09
@@ -12,45 +14,64 @@
 # Required-Start:
 # Default-Stop: 0 1 6
 # Short-Description: Starts the Name Switch Cache Daemon
-# Description:  Control script for starting/stopping elastiq.py using \
-#               proper environment. Requires SLC6 (or RHEL6-compat) \
-#               with CVMFS: uses Python v2.7 from there.
+# Description:  Control script for starting/stopping elastiq.py.
 ### END INIT INFO
+
+#
+# Init
+#
 
 # Source function library.
 . /etc/init.d/functions
 
-#
-# elastiq -- by Dario Berzano <dario.berzano@cern.ch>
-#
-# Control script for starting/stopping elastiq.py using proper environment.
-# Requires SLC6 with CVMFS: uses Python v2.7 from there.
-#
-
 Prog=`readlink -e "$0"`
 cd `dirname "$Prog"`
 Prog=`basename "$0"`
+
+# Find first existing file in the given list. Files support spaces in the name.
+function FindFirst() {
+  local F
+  for F in "$@" ; do
+    if [ -r "$F" ] ; then
+      echo "$F"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Load environment
+elastiqDefault=$( FindFirst "$HOME/.elastiq.default" "/etc/default/elastiq" "/etc/sysconfig/elastiq" )
+if [ "$elastiqDefault" == '' ] ; then
+  echo 'Cannot find startup configuration file' >&2
+  exit 2
+fi
+source "$elastiqDefault"
+
 Lock='/var/lock/subsys/elastiq'
 
-# GCC
-source /cvmfs/sft.cern.ch/lcg/external/gcc/4.7.2/x86_64-slc6-gcc47-opt/setup.sh ''  # empty arg needed!
+# Default control variables
+export elastiqScreenName='__|elastiq|__'
+export elastiqRealBin=$( FindFirst "$PWD/elastiq.py" '/usr/bin/elastiq.py' )
+export elastiqCommand="python $elastiqRealBin"
+export elastiqLogFileDir=${elastiqLogFileDir:-/var/log/elastiq}  # defaults to syswide path
+export elastiqLogFile="${elastiqLogFileDir}/elastiq.log"
+export elastiqUser=${elastiqUser:-elastiq}  # defaults to 'elastiq'
 
-# Python 2.7
-export PythonPrefix=/cvmfs/sft.cern.ch/lcg/external/Python/2.7.3/x86_64-slc6-gcc47-opt
-export PATH="$PythonPrefix/bin:$PATH"
-export LD_LIBRARY_PATH="$PythonPrefix/lib:$LD_LIBRARY_PATH"
+# Permissions for logfile dir
+mkdir -p "$elastiqLogFileDir" 2> /dev/null
+chown "$elastiqUser" "$elastiqLogFileDir" 2> /dev/null
+chmod 0700 "$elastiqLogFileDir" 2> /dev/null  # might contain sensitive data
+touch "$elastiqLogFileDir"/.test
+if [ $? != 0 ] ; then
+  echo "Cannot access log directory $elastiqLogFileDir" >&2
+  exit 3
+fi
+rm -f "$elastiqLogFileDir"/.test
 
-# Boto
-export PyBotoPrefix='/var/lib/condor/boto'
-export PATH="$PyBotoPrefix/bin:$PATH"
-export LD_LIBRARY_PATH="$PyBotoPrefix/lib:$LD_LIBRARY_PATH"
-export PYTHONPATH="$PyBotoPrefix/lib/python2.7/site-packages:$PYTHONPATH"
-
-# Control variables
-export elastiqScreenName='elastiq'
-export elastiqCommand='python elastiq.py'
-export elastiqLogFile=$( readlink -m '../var/log/elastiq.log' )
-export elastiqUser='condor'  # TODO: don't hardcode
+#
+# Functions
+#
 
 # Stop elastiq
 function stop() {
@@ -68,7 +89,7 @@ function stop() {
   done
 
   # Clean dangling screen
-  screen -ls | grep -q "$elastiqScreenName" && \
+  screen -ls | grep -q "$elastiqScreenName" 2> /dev/null && \
     screen -S "$elastiqScreenName" -X quit
   screen -wipe > /dev/null 2>&1
 
@@ -98,8 +119,10 @@ function status() {
 
 # Enter elastiq screen
 function enter_screen() {
+  local SN="$elastiqScreenName"
   if status ; then
-    screen -r "$elastiqScreenName"
+    [ $(whoami) != "$elastiqUser" ] && SN="$elastiqUser/$SN"
+    screen -r "$SN"
     return $?
   fi
   return 1
@@ -120,6 +143,8 @@ function start() {
       Cmd="/bin/sh -c"
     fi
     $Cmd "screen -dmS \"$elastiqScreenName\" $elastiqCommand" > /dev/null 2>&1
+    $Cmd "screen -S \"$elastiqScreenName\" -X multiuser on"
+    $Cmd "screen -S \"$elastiqScreenName\" -X acladd root"
 
     sleep 1
     LastMsg=`status`
@@ -128,6 +153,7 @@ function start() {
   echo -n "$LastMsg"
   if [ $Rv == 0 ] ; then
     touch "$Lock" 2> /dev/null
+    chown "$elastiqUser" "$Lock" 2> /dev/null
     success
   else
     failure
@@ -136,6 +162,12 @@ function start() {
   return $Rv
 }
 
+# Print configuration
+function print_conf() {
+  echo "Python  : $( which python ) ($( python -V 2>&1 ))"
+  echo "Elastiq : $elastiqRealBin"
+  echo "Log dir : $elastiqLogFileDir"
+}
 
 # Entry point
 case "$1" in
@@ -170,8 +202,13 @@ case "$1" in
     exit $?
   ;;
 
+  conf)
+    print_conf
+    exit $?
+  ;;
+
   *)
-    echo "Usage: $Prog [start|stop|status|restart|log|console]"
+    echo "Usage: $Prog [start|stop|status|restart|log|console|conf]"
     exit 1
   ;;
 
