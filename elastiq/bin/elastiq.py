@@ -662,16 +662,30 @@ def main():
   while do_main_loop == True:
 
     check_time = time.time()
+    count = 0
+    tot = len(event_queue)
     for evt in event_queue[:]:
       if evt['when'] <= check_time:
         r = None
         event_queue.remove(evt)
 
-        # Actions
+        # Extra params?
+        if 'params' in evt:
+          p = evt['params']
+        else:
+          p = []
+
+        # Debug message
+        count+=1
+        logging.debug("Event %d/%d in queue: action=%s when=%d params=%s" % (count, tot, evt['action'], evt['when'], p))
+
+        # Action
         if evt['action'] == 'check_vms':
-          r = check_vms(internal_state)
+          r = check_vms(internal_state, *p)
         elif evt['action'] == 'check_queue':
-          r = check_queue(internal_state)
+          r = check_queue(internal_state, *p)
+        elif evt['action'] == 'change_jobs_allegedly_running':
+          r = check_queue(internal_state, *p)
 
         if r is not None:
           event_queue.append(r)
