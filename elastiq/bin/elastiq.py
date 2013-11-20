@@ -418,7 +418,7 @@ def poll_condor_queue():
   Returns the number of inserted jobs on success, or -1 on failure.
   """
 
-  ret = robust_cmd(['condor_q', '-attributes', 'JobStatus', '-long'], max_attempts=10)
+  ret = robust_cmd(['condor_q', '-attributes', 'JobStatus', '-long'], max_attempts=5)
   if ret and 'output' in ret:
     return ret['output'].count("JobStatus = 1")
 
@@ -430,7 +430,7 @@ def poll_condor_status(current_workers_status):
   per worker. Returns an array of hosts, each one of them has a parameter that
   indicates the number of running jobs."""
 
-  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=2)
+  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=7)
   if ret is None or 'output' not in ret:
     return None
 
