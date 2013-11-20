@@ -24,6 +24,7 @@ cf['elastiq'] = {
   'sleep_s': 5,
   'check_queue_every_s': 15,
   'check_vms_every_s': 45,
+  'estimated_vm_deploy_time_s': 600,
 
   # Conditions to start new VMs
   'waiting_jobs_threshold': 10,
@@ -415,14 +416,14 @@ def ec2_scale_down(hosts, valid_hostnames=None):
 
 def poll_condor_queue(): 
   """Polls HTCondor for the number of inserted (i.e., "waiting") jobs.
-  Returns the number of inserted jobs on success, or -1 on failure.
+  Returns the number of inserted jobs on success, or None on failure.
   """
 
   ret = robust_cmd(['condor_q', '-attributes', 'JobStatus', '-long'], max_attempts=5)
   if ret and 'output' in ret:
     return ret['output'].count("JobStatus = 1")
 
-  return -1
+  return None
 
 
 def poll_condor_status(current_workers_status):
@@ -538,9 +539,7 @@ def check_vms(st):
 
     if len(hosts_shutdown) > 0:
       n_ok = ec2_scale_down(hosts_shutdown, valid_hostnames=st['workers_status'].keys())
-      st['jobs_allegedly_running'] -= n_ok * cf['elastiq']['n_jobs_per_vm']
-      if st['jobs_allegedly_running'] < 0:
-        st['jobs_allegedly_running'] = 0
+      change_vms_allegedly_running(st, -n_ok)
 
     # Scale up to reach the minimum quota, if any
     min_vms = cf['quota']['min_vms']
@@ -554,7 +553,7 @@ def check_vms(st):
           logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
             (min_vms,n_vms))
           n_ok = ec2_scale_up(n_vms, valid_hostnames=st['workers_status'].keys())
-          st['jobs_allegedly_running'] += n_ok * cf['elastiq']['n_jobs_per_vm']
+          change_vms_allegedly_running(st, n_ok)
 
     # OK: schedule when configured
     sched_when = time.time() + cf['elastiq']['check_vms_every_s']
@@ -577,7 +576,14 @@ def check_queue(st):
   check_time = time.time()
   n_waiting_jobs = poll_condor_queue()
 
-  if n_waiting_jobs != -1:
+  if n_waiting_jobs is not None:
+
+    # Correction factor
+    corr = st['vms_allegedly_running'] * cf['elastiq']['n_jobs_per_vm']
+    logging.info("Jobs: running=%d | allegedly running=%d | considering=%d" % \
+      (n_waiting_jobs, corr, n_waiting_jobs-corr))
+    n_waiting_jobs -= corr
+
     if n_waiting_jobs > cf['elastiq']['waiting_jobs_threshold']:
       if st['first_seen_above_threshold'] != -1:
         if (check_time-st['first_seen_above_threshold']) > cf['elastiq']['waiting_jobs_time_s']:
@@ -585,7 +591,7 @@ def check_queue(st):
           logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
             (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
           n_ok = ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])), valid_hostnames=st['workers_status'].keys() )
-          st['jobs_allegedly_running'] += n_ok * cf['elastiq']['n_jobs_per_vm']
+          change_vms_allegedly_running(st, n_ok)
           st['first_seen_above_threshold'] = -1
         else:
           # Above threshold but not for enough time
@@ -608,6 +614,22 @@ def check_queue(st):
     'action': 'check_queue',
     'when': time.time() + cf['elastiq']['check_queue_every_s']
   }
+
+
+def change_vms_allegedly_running(st, delta):
+  """Changes the number of VMs allegedly running by adding a delta."""
+  st['vms_allegedly_running'] += delta
+  if st['vms_allegedly_running'] < 0:
+    st['vms_allegedly_running'] = 0
+  logging.info("Number of allegedly running jobs changed to %d" % st['vms_allegedly_running'])
+
+  # When incrementing, we should set an event to decrement of the same quantity
+  if delta > 0:
+    st['event_queue'].append({
+      'action': 'change_vms_allegedly_running',
+      'when': time.time() + cf['elastiq']['estimated_vm_deploy_time_s'],
+      'params': [ -delta ]
+    })
 
 
 def main():
@@ -651,44 +673,46 @@ def main():
   internal_state = {
     'first_seen_above_threshold': -1,
     'workers_status': {},
-    'jobs_allegedly_running': 0
+    'vms_allegedly_running': 0,
+    'event_queue': [
+      {'action': 'check_vms',   'when': 0},
+      {'action': 'check_queue', 'when': 0}
+    ]
   }
-  event_queue = [
-    {'action': 'check_vms',   'when': 0},
-    {'action': 'check_queue', 'when': 0},
-  ]
 
   # Event-based main loop
   while do_main_loop == True:
 
     check_time = time.time()
     count = 0
-    tot = len(event_queue)
-    for evt in event_queue[:]:
+    tot = len(internal_state['event_queue'])
+    for evt in internal_state['event_queue'][:]:
+
+      # Extra params?
+      if 'params' in evt:
+        p = evt['params']
+      else:
+        p = []
+
+      # Debug message
+      count+=1
+      logging.debug("Event %d/%d in queue: action=%s when=%d (%d) params=%s" % \
+        (count, tot, evt['action'], evt['when'], check_time-evt['when'], p))
+
       if evt['when'] <= check_time:
         r = None
-        event_queue.remove(evt)
-
-        # Extra params?
-        if 'params' in evt:
-          p = evt['params']
-        else:
-          p = []
-
-        # Debug message
-        count+=1
-        logging.debug("Event %d/%d in queue: action=%s when=%d params=%s" % (count, tot, evt['action'], evt['when'], p))
+        internal_state['event_queue'].remove(evt)
 
         # Action
         if evt['action'] == 'check_vms':
           r = check_vms(internal_state, *p)
         elif evt['action'] == 'check_queue':
           r = check_queue(internal_state, *p)
-        elif evt['action'] == 'change_jobs_allegedly_running':
-          r = check_queue(internal_state, *p)
+        elif evt['action'] == 'change_vms_allegedly_running':
+          r = change_vms_allegedly_running(internal_state, *p)
 
         if r is not None:
-          event_queue.append(r)
+          internal_state['event_queue'].append(r)
 
     logging.debug("Sleeping %d seconds" % cf['elastiq']['sleep_s']);
     time.sleep( cf['elastiq']['sleep_s'] )
