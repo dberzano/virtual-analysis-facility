@@ -580,7 +580,7 @@ def check_queue(st):
 
     # Correction factor
     corr = st['vms_allegedly_running'] * cf['elastiq']['n_jobs_per_vm']
-    logging.info("Jobs: running=%d | allegedly running=%d | considering=%d" % \
+    logging.info("Jobs: waiting=%d | allegedly running=%d | considering=%d" % \
       (n_waiting_jobs, corr, n_waiting_jobs-corr))
     n_waiting_jobs -= corr
 
