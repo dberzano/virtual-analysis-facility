@@ -548,7 +548,11 @@ def check_vms(st):
       if rvms is None:
         logging.warning("Cannot get list of running instances for honoring min quota of %d" % min_vms)
       else:
-        n_vms = min_vms-len(rvms)
+        n_run = len(rvms)
+        n_consider_run = n_run + st['vms_allegedly_running']
+        logging.info("VMs: running=%d | allegedly running=%d | considering=%d" % \
+          (n_run, st['vms_allegedly_running'], n_consider_run))
+        n_vms = min_vms-n_consider_run
         if n_vms > 0:
           logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
             (min_vms,n_vms))
