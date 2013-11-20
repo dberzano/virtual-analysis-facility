@@ -29,11 +29,9 @@ cf['elastiq'] = {
   'waiting_jobs_threshold': 10,
   'waiting_jobs_time_s': 100,
   'n_jobs_per_vm': 4,
-  'cmd_start': 'vmstart.sh',
 
   # Conditions to stop idle VMs
   'idle_for_time_s': 3600,
-  'cmd_stop': 'vmstop.sh',
 
   # Condor central server (defaults to current one)
   'condor_host': None
@@ -72,7 +70,6 @@ ec2h = None
 ec2img = None
 user_data = None
 do_main_loop = True
-event_queue = []
 
 
 def type2str(any):
@@ -163,7 +160,7 @@ def log():
 
 def exit_main_loop(signal, frame):
   global do_main_loop
-  logging.info('Exiting gracefully')
+  logging.debug("Termination requested")
   do_main_loop = False
 
 
@@ -518,7 +515,8 @@ def ec2_image(image_id):
 def check_vms(workers_status):
   """Checks status of Virtual Machines currently associated to HTCondor:
   starts new nodes to satisfy minimum quota requirements, and turn off idle
-  nodes. Takes a list of worker statuses as input."""
+  nodes. Takes a list of worker statuses as input and returns an event
+  dictionary scheduling self invocation."""
 
   logging.info("Checking HTCondor VMs...")
   check_time = time.time()
@@ -554,10 +552,15 @@ def check_vms(workers_status):
             (min_vms,n_vms))
           ec2_scale_up(n_vms, valid_hostnames=workers_status.keys())
 
+  return {
+    'action': 'check_vms',
+    'when': time.time() + cf['elastiq']['check_vms_every_s']
+  }
+
 
 def check_queue(workers_status, first_seen_above_threshold):
   """Checks HTCondor queue and take actions of starting VMs when
-  appropriate."""
+  appropriate. Returns an event dictionary scheduling self invocation."""
 
   logging.info("Checking HTCondor queue...")
   check_time = time.time()
@@ -588,6 +591,11 @@ def check_queue(workers_status, first_seen_above_threshold):
       first_seen_above_threshold = -1
   else:
     logging.error("Cannot get the number of waiting jobs this time, sorry")
+
+  return {
+    'action': 'check_queue',
+    'when': time.time() + cf['elastiq']['check_queue_every_s']
+  }
 
 
 def main():
@@ -627,37 +635,36 @@ def main():
     logging.error("Invalid base64 data for user-data!")
     user_data = ''
 
-  # Check VMs every N loops
-  if cf['elastiq']['check_vms_every_s'] > cf['elastiq']['check_queue_every_s']:
-    check_vm_loops = round( float(cf['elastiq']['check_vms_every_s']) / cf['elastiq']['check_queue_every_s'] )
-    check_vm_sleep = check_vm_loops * cf['elastiq']['check_queue_every_s']
-    if check_vm_sleep != cf['elastiq']['check_vms_every_s']:
-      logging.warning("Checking HTCondor VMs every %d s instead of the configured %d s" % (check_vm_sleep,cf['elastiq']['check_vms_every_s']))
-  else:
-    check_vm_loops = 1 # check every loop
-
   # State variables
   first_seen_above_threshold = -1
   workers_status = {}
+  event_queue = [
+    {'action': 'check_vms',   'when': 0},
+    {'action': 'check_queue', 'when': 0},
+  ]
 
-  # Main loop
-  n_loop = 0
+  # Event-based main loop
   while do_main_loop == True:
 
-    # Check current status and shut down idle VMs
-    if n_loop == 0:
-      check_vms(workers_status)
+    check_time = time.time()
+    for evt in event_queue[:]:
+      if evt['when'] <= check_time:
+        r = None
+        event_queue.remove(evt)
 
-    # Check queue and start new VMs
-    check_queue(workers_status, first_seen_above_threshold)
+        # Actions
+        if evt['action'] == 'check_vms':
+          r = check_vms(workers_status)
+        elif evt['action'] == 'check_queue':
+          r = check_queue(workers_status, first_seen_above_threshold)
 
-    # End of loop
-    n_loop+=1
-    if n_loop == check_vm_loops:
-      n_loop = 0
+        if r is not None:
+          event_queue.append(r)
 
-    logging.info("Sleeping %d seconds" % cf['elastiq']['check_queue_every_s']);
-    time.sleep( cf['elastiq']['check_queue_every_s'] )
+    logging.debug("Sleeping %d seconds" % cf['elastiq']['sleep_s']);
+    time.sleep( cf['elastiq']['sleep_s'] )
+
+  logging.info("Exiting gracefully!")
 
 
 #
