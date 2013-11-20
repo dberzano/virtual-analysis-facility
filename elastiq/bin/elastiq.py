@@ -625,7 +625,7 @@ def change_vms_allegedly_running(st, delta):
   st['vms_allegedly_running'] += delta
   if st['vms_allegedly_running'] < 0:
     st['vms_allegedly_running'] = 0
-  logging.info("Number of allegedly running jobs changed to %d" % st['vms_allegedly_running'])
+  logging.info("Number of allegedly running VMs changed to %d" % st['vms_allegedly_running'])
 
   # When incrementing, we should set an event to decrement of the same quantity
   if delta > 0:
