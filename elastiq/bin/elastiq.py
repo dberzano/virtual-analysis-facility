@@ -430,7 +430,7 @@ def poll_condor_status(current_workers_status):
   per worker. Returns an array of hosts, each one of them has a parameter that
   indicates the number of running jobs."""
 
-  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=7)
+  ret = robust_cmd(['condor_status', '-xml', '-attributes', 'Activity,Machine'], max_attempts=2)
   if ret is None or 'output' not in ret:
     return None
 
@@ -556,9 +556,16 @@ def check_vms(st):
           n_ok = ec2_scale_up(n_vms, valid_hostnames=st['workers_status'].keys())
           st['jobs_allegedly_running'] += n_ok * cf['elastiq']['n_jobs_per_vm']
 
+    # OK: schedule when configured
+    sched_when = time.time() + cf['elastiq']['check_vms_every_s']
+
+  else:
+    # Not OK: reschedule ASAP
+    sched_when = 0
+
   return {
     'action': 'check_vms',
-    'when': time.time() + cf['elastiq']['check_vms_every_s']
+    'when': sched_when
   }
 
 
