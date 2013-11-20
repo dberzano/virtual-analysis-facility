@@ -21,6 +21,7 @@ cf = {}
 cf['elastiq'] = {
 
   # Main loop
+  'sleep_s': 5,
   'check_queue_every_s': 15,
   'check_vms_every_s': 45,
 
@@ -71,6 +72,7 @@ ec2h = None
 ec2img = None
 user_data = None
 do_main_loop = True
+event_queue = []
 
 
 def type2str(any):
@@ -513,6 +515,81 @@ def ec2_image(image_id):
   return img
 
 
+def check_vms(workers_status):
+  """Checks status of Virtual Machines currently associated to HTCondor:
+  starts new nodes to satisfy minimum quota requirements, and turn off idle
+  nodes. Takes a list of worker statuses as input."""
+
+  logging.info("Checking HTCondor VMs...")
+  check_time = time.time()
+  new_workers_status = poll_condor_status(workers_status)
+
+  if new_workers_status is not None:
+    #logging.debug(new_workers_status)
+    workers_status = new_workers_status
+    new_workers_status = None
+
+    hosts_shutdown = []
+    for host,info in workers_status.iteritems():
+      if info['jobs'] != 0: continue
+      if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
+        logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
+          (host,cf['elastiq']['idle_for_time_s']))
+        workers_status[host]['unchangedsince'] = check_time  # reset timer
+        hosts_shutdown.append(host)
+
+    if len(hosts_shutdown) > 0:
+      ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
+
+    # Scale up to reach the minimum quota, if any
+    min_vms = cf['quota']['min_vms']
+    if min_vms >= 1:
+      rvms = ec2_running_instances(workers_status.keys())
+      if rvms is None:
+        logging.warning("Cannot get list of running instances for honoring min quota of %d" % min_vms)
+      else:
+        n_vms = min_vms-len(rvms)
+        if n_vms > 0:
+          logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
+            (min_vms,n_vms))
+          ec2_scale_up(n_vms, valid_hostnames=workers_status.keys())
+
+
+def check_queue(workers_status, first_seen_above_threshold):
+  """Checks HTCondor queue and take actions of starting VMs when
+  appropriate."""
+
+  logging.info("Checking HTCondor queue...")
+  check_time = time.time()
+  n_waiting_jobs = poll_condor_queue()
+
+  if n_waiting_jobs != -1:
+    if n_waiting_jobs > cf['elastiq']['waiting_jobs_threshold']:
+      if first_seen_above_threshold != -1:
+        if (check_time-first_seen_above_threshold) > cf['elastiq']['waiting_jobs_time_s']:
+          # Above threshold time-wise and jobs-wise: do something
+          logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
+            (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
+          ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])), valid_hostnames=workers_status.keys() )
+          first_seen_above_threshold = -1
+        else:
+          # Above threshold but not for enough time
+          logging.info("Waiting jobs: %d (still above threshold of %d for less than %ds)" % \
+            (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
+      else:
+        # First time seen above threshold
+        logging.info("Waiting jobs: %d (first time above threshold of %d)" % \
+          (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold']))
+        first_seen_above_threshold = check_time
+    else:
+      # Not above threshold: reset
+      logging.info("Waiting jobs: %d (below threshold of %d)" % \
+        (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold']))
+      first_seen_above_threshold = -1
+  else:
+    logging.error("Cannot get the number of waiting jobs this time, sorry")
+
+
 def main():
 
   global ec2h, ec2img, user_data
@@ -560,86 +637,19 @@ def main():
     check_vm_loops = 1 # check every loop
 
   # State variables
-  first_time_above_threshold = -1
+  first_seen_above_threshold = -1
   workers_status = {}
 
   # Main loop
   n_loop = 0
   while do_main_loop == True:
 
-    check_time = time.time()
-
-    #
     # Check current status and shut down idle VMs
-    #
-
     if n_loop == 0:
+      check_vms(workers_status)
 
-      logging.info("Checking HTCondor VMs...")
-      new_workers_status = poll_condor_status(workers_status)
-
-      if new_workers_status is not None:
-        #logging.debug(new_workers_status)
-        workers_status = new_workers_status
-        new_workers_status = None
-
-        hosts_shutdown = []
-        for host,info in workers_status.iteritems():
-          if info['jobs'] != 0: continue
-          if (check_time-info['unchangedsince']) > cf['elastiq']['idle_for_time_s']:
-            logging.info("Host %s is idle for more than %ds: requesting shutdown" % \
-              (host,cf['elastiq']['idle_for_time_s']))
-            workers_status[host]['unchangedsince'] = check_time  # reset timer
-            hosts_shutdown.append(host)
-
-        if len(hosts_shutdown) > 0:
-          ec2_scale_down(hosts_shutdown, valid_hostnames=workers_status.keys())
-
-        # Scale up to reach the minimum quota, if any
-        min_vms = cf['quota']['min_vms']
-        if min_vms >= 1:
-          rvms = ec2_running_instances(workers_status.keys())
-          if rvms is None:
-            logging.warning("Cannot get list of running instances for honoring min quota of %d" % min_vms)
-          else:
-            n_vms = min_vms-len(rvms)
-            if n_vms > 0:
-              logging.info("Below minimum quota (%d VMs): requesting %d more VMs" % \
-                (min_vms,n_vms))
-              ec2_scale_up(n_vms, valid_hostnames=workers_status.keys())
-
-    #
     # Check queue and start new VMs
-    #
-
-    logging.info("Checking HTCondor queue...")
-    n_waiting_jobs = poll_condor_queue()
-
-    if n_waiting_jobs != -1:
-      if n_waiting_jobs > cf['elastiq']['waiting_jobs_threshold']:
-        if first_time_above_threshold != -1:
-          if (check_time-first_time_above_threshold) > cf['elastiq']['waiting_jobs_time_s']:
-            # Above threshold time-wise and jobs-wise: do something
-            logging.info("Waiting jobs: %d (above threshold of %d for more than %ds)" % \
-              (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
-            ec2_scale_up( round(n_waiting_jobs / float(cf['elastiq']['n_jobs_per_vm'])), valid_hostnames=workers_status.keys() )
-            first_time_above_threshold = -1
-          else:
-            # Above threshold but not for enough time
-            logging.info("Waiting jobs: %d (still above threshold of %d for less than %ds)" % \
-              (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold'], cf['elastiq']['waiting_jobs_time_s']))
-        else:
-          # First time seen above threshold
-          logging.info("Waiting jobs: %d (first time above threshold of %d)" % \
-            (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold']))
-          first_time_above_threshold = check_time
-      else:
-        # Not above threshold: reset
-        logging.info("Waiting jobs: %d (below threshold of %d)" % \
-          (n_waiting_jobs, cf['elastiq']['waiting_jobs_threshold']))
-        first_time_above_threshold = -1
-    else:
-      logging.error("Cannot get the number of waiting jobs this time, sorry")
+    check_queue(workers_status, first_seen_above_threshold)
 
     # End of loop
     n_loop+=1
