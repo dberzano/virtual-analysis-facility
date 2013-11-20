@@ -442,6 +442,11 @@ function Main() {
     AppendConf "$Cf" "$VafPodRemoteEnv"
   done
 
+  # Load "remote" configuration locally if we are working as such
+  if [ "$VafUserHost" == '' ] ; then
+    LoadConf "$VafPodRemoteEnv" || exit $ErrLocalCf
+  fi
+
   # Set some defaults
   [ "$VafConf_PodRms" == '' ] && VafConf_PodRms='condor'
 
