@@ -437,15 +437,16 @@ function ConfigElastiq() {
   local UnprivUser='condor'
   local UnprivPrefix='/var/lib/condor/vaf'
   local BashVaf='/etc/profile.d/vaf.sh'
+  local Branch='master'
 
   if [ ! -d "$UnprivPrefix" ] ; then
 
     mkdir -p "$UnprivPrefix"
     git clone "$Git" "$UnprivPrefix" || return 1
-    ( cd "$UnprivPrefix" && git checkout boto-ec2 && git remote set-url origin "$GitAuth" ) || return 1
+    ( cd "$UnprivPrefix" && git checkout "$Branch" && git remote set-url origin "$GitAuth" ) || return 1
     chown -R $UnprivUser "$UnprivPrefix" || return 1
     cat > "$BashVaf" <<_EoF_
-export PATH="${UnprivPrefix}/elastiq/bin:\$PATH"
+export PATH="${UnprivPrefix}/vaf/bin:${UnprivPrefix}/elastiq/bin:\$PATH"
 _EoF_
 
   fi
@@ -475,9 +476,9 @@ _EoF_
   # Default parts
   cat >> "$Cfg" <<_EoF_
 [elastiq]
-check_queue_every_s = 60
+check_queue_every_s = 30
 check_vms_every_s = 600
-waiting_jobs_threshold = 10
+waiting_jobs_threshold = 0
 waiting_jobs_time_s = 100
 idle_for_time_s = 1800
 
