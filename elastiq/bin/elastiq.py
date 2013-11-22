@@ -353,8 +353,8 @@ def ec2_scale_down(hosts, valid_hostnames=None):
   # Now filter out only instances to shutdown
   inst_shutdown = []
   for ip in ips:
+    found = False
     for i in inst:
-      found = False
       if i.private_ip_address == ip:
         inst_shutdown.append(i)
         found = True
