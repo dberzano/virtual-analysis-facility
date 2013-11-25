@@ -385,8 +385,6 @@ def ec2_scale_down(hosts, valid_hostnames=None):
       if int(cf['debug']['dry_run_shutdown_vms']) == 0:
         try:
           i.terminate()
-          time.sleep(1)
-          i.terminate()  # twice on purpose
           logging.debug("Shutdown via EC2 of %s succeeded" % ipv4)
           success = True
         except Exception, e:
