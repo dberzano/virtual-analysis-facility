@@ -446,7 +446,7 @@ function ConfigElastiq() {
     ( cd "$UnprivPrefix" && git checkout "$Branch" && git remote set-url origin "$GitAuth" ) || return 1
     chown -R $UnprivUser "$UnprivPrefix" || return 1
     cat > "$BashVaf" <<_EoF_
-export PATH="${UnprivPrefix}/vaf/bin:${UnprivPrefix}/elastiq/bin:\$PATH"
+export PATH="${UnprivPrefix}/client/bin:${UnprivPrefix}/elastiq/bin:\$PATH"
 _EoF_
 
   fi
