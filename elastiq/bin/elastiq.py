@@ -327,9 +327,6 @@ def ec2_scale_down(hosts, valid_hostnames=None):
   different than what we do for the maximum quota, where we take into account
   all the running VMs to avoid cloud overflowing."""
 
-  n_succ = 0
-  n_fail = 0
-
   if len(hosts) == 0:
     logging.warning("No hosts to shut down!")
     return 0
@@ -363,20 +360,25 @@ def ec2_scale_down(hosts, valid_hostnames=None):
       logging.warning("Cannot find instance for IP to shut down %s: skipped" % ip)
 
   # Print number of all valid instances
-  logging.debug("%d/%d total valid instances to shutdown found" % (len(inst_shutdown),len(inst)))
+  logging.debug("HTCondor hosts: reqd to shutdown=%d | to shutdown matching EC2=%d | total matching EC2=%d" % \
+    (len(hosts), len(inst_shutdown), len(inst)))
 
   # Shuffle the list
   random.shuffle(inst_shutdown)
 
-  # Iterate and shutdown
-  vms_to_shutdown = len(inst_shutdown)-cf['quota']['min_vms']  # honor quota!
-  if vms_to_shutdown <= 0:
+  # Number of VMs to shutdown to honor the minimum quota of EC2 VMs matching HTCondor hosts
+  max_vms_to_shutdown = len(inst)-cf['quota']['min_vms']  # inst --> known *both* by HTCondor and EC2
+
+  n_succ = 0
+  n_fail = 0
+
+  if max_vms_to_shutdown <= 0:
     logging.info("Not shutting down any VM to honor the minimum quota of %d" % cf['quota']['min_vms'])
 
   else:
 
-    logging.info("Shutting down %d (out of %d) VMs due to minimum quota of %d" % \
-      (vms_to_shutdown, len(inst_shutdown), cf['quota']['min_vms']))
+    logging.info("Shutting down maximum %d VMs (total managed=%d, requested=%d, requested and managed=%d) to honor minimum quota of %d" % \
+      (max_vms_to_shutdown, len(inst), len(hosts), len(inst_shutdown), cf['quota']['min_vms']))
 
     for i in inst_shutdown:
 
@@ -397,16 +399,15 @@ def ec2_scale_down(hosts, valid_hostnames=None):
       # Messages
       if success:
         n_succ+=1
-        logging.info("VM shutdown requested OK. Requested: %d/%d | Success: %d | Failed: %d" % \
-          (n_succ+n_fail, vms_to_shutdown, n_succ, n_fail))
+        logging.info("VM shutdown requested OK. Status: total=%d | success=%d | failed: %d" % \
+          (n_succ+n_fail, n_succ, n_fail))
       else:
         n_fail+=1
-        logging.info("VM shutdown request fail. Requested: %d/%d | Success: %d | Failed: %d" % \
-          (n_succ+n_fail, vms_to_shutdown, n_succ, n_fail))
+        logging.info("VM shutdown request fail. Status: total=%d | success=%d | failed: %d" % \
+          (n_succ+n_fail, n_succ, n_fail))
 
       # Check min quota
-      if n_succ == vms_to_shutdown:
-        #logging.info("Maintainig quota of minimum %d VM(s) running", cf['quota']['min_vms'])
+      if n_succ == max_vms_to_shutdown:
         break
 
   return n_succ
