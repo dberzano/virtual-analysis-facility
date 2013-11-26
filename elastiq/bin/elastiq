@@ -142,7 +142,7 @@ function start() {
     else
       Cmd="/bin/sh -c"
     fi
-    $Cmd "screen -dmS \"$elastiqScreenName\" $elastiqCommand" > /dev/null 2>&1
+    $Cmd "screen -dmS \"$elastiqScreenName\" /bin/sh -c \"$elastiqCommand 2> $elastiqLogFileDir/elastiq.err\"" > /dev/null 2>&1
     $Cmd "screen -S \"$elastiqScreenName\" -X multiuser on"
     $Cmd "screen -S \"$elastiqScreenName\" -X acladd root"
 

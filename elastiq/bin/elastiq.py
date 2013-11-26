@@ -134,7 +134,7 @@ def log():
   level=logging.DEBUG
 
   # Log to console
-  logging.basicConfig(level=level, format=format, datefmt=datefmt)
+  logging.basicConfig(level=level, format=format, datefmt=datefmt, stream=sys.stdout)
 
   # Log directory and file
   dir = os.path.realpath( os.path.realpath(os.path.dirname(__file__)) + "/../var/log" )
