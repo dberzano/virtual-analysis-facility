@@ -454,7 +454,11 @@ function Main() {
   _vaf_privkey_setup "$VafUser" "$VafHost" "$VafPort" || return $ErrKey
 
   # Enter shell
-  _vaf_p "Entering VAF environment: $VafUserHost"
+  if [ "$VafUserHost" != '' ] ; then
+    _vaf_p "Entering VAF environment: $VafUserHost"
+  else
+    _vaf_p 'Entering local VAF environment'
+  fi
   _vaf_p 'Remember: you are still in a shell on your local computer!'
   _vaf_p 'Type "exit" to return to your previous shell.'
   export VafPodRemoteEnv VafUserHost VafConf_PodRms VafConf_PodQueue
