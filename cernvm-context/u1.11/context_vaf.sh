@@ -244,7 +244,7 @@ function ConfigSshcertauth() {
   #local HttpsAuthConf="/etc/httpd/conf.d/ssl-sshcertauth.conf"
 
   # Install php-ldap package
-  yum install -y php-ldap || return 1
+  #yum install -y php-ldap || return 1
 
   rm -rf "$Dest"
   mkdir -p "$Dest"
@@ -517,6 +517,7 @@ function ConfigYumProxy() {
   local Proxy=$(curl "$Url" | grep "^CVMFS_HTTP_PROXY")
   Proxy=$(echo "$Proxy" | cut -d= -f2- | cut -d\; -f1 | cut -d\| -f1)
   [ "$Proxy" == '' ] && return 1
+  [ "$Proxy" == 'DIRECT' ] && return 0
 
   cat "$Conf" | grep -v '^proxy=' | \
     sed -e 's#\(\[main\]\)#\1\nproxy='"$Proxy"'#' > "$Conf".0
@@ -580,7 +581,7 @@ function Actions() {
 
   Exec 'Replacing some amiconfig plugins with temporary fixes' ConfigAmiconfigPlugins
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
-  Exec 'Config yum proxy' ConfigYumProxy
+  #Exec 'Config yum proxy' ConfigYumProxy
   Exec 'Replacing Bash prompt' ConfigBashPrompt
   Exec 'Mounting shared NFS software area' ConfigNfs
 
