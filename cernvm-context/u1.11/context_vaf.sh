@@ -410,25 +410,6 @@ unset SSH_ASKPASS
 _EoF_
 }
 
-# Mount NFS (only at CERN)
-function ConfigNfs() {
-  local Server='128.142.242.158'
-  local Fstab='/etc/fstab'
-  local Mnt='/sw'
-
-  # Check if server exists
-  ping -c 1 -w 2 $Server > /dev/null 2>&1 || return 0
-
-  grep -v ":$Mnt" "$Fstab" > "$Fstab".0
-  echo "$Server:$Mnt $Mnt nfs nfsvers=3 0 0" >> "$Fstab".0
-  mv "$Fstab".0 "$Fstab"
-  mkdir -p "$Mnt"
-  mount "$Mnt"
-
-  [ -d "$Mnt/vaf" ] && return 0
-  return 1
-}
-
 # Elastiq on the master
 function ConfigElastiq() {
   local Git='https://github.com/dberzano/virtual-analysis-facility.git'
@@ -583,7 +564,6 @@ function Actions() {
   Exec 'Another temporary fix for Condor' ConfigCondorHotfix
   #Exec 'Config yum proxy' ConfigYumProxy
   Exec 'Replacing Bash prompt' ConfigBashPrompt
-  Exec 'Mounting shared NFS software area' ConfigNfs
 
   case "$VafConf_AuthMethod" in
     alice_ldap)
