@@ -146,7 +146,7 @@ function ConfigAliceUsers() {
   local NscdConf=/etc/nscd.conf
 
   # Install sssd package
-  yum install -y sssd || return 1
+  #yum install -y sssd || return 1  # no longer needed in devel branch
 
   # Create proper "alice" group (can't override GID for the moment)
   groupadd -g 1395 alice > /dev/null 2>&1
