@@ -42,6 +42,7 @@ cf['ec2'] = {
 
   # Configuration to access EC2 API
   'api_url': 'https://dummy.ec2.server/ec2/',
+  'api_version': None,
   'aws_access_key_id': 'my_username',
   'aws_secret_access_key': 'my_password',
 
@@ -656,7 +657,8 @@ def main():
   ec2h = boto.connect_ec2_endpoint(
     cf['ec2']['api_url'],
     aws_access_key_id=cf['ec2']['aws_access_key_id'],
-    aws_secret_access_key=cf['ec2']['aws_secret_access_key'])
+    aws_secret_access_key=cf['ec2']['aws_secret_access_key'],
+    api_version=cf['ec2']['api_version'])
 
   # Initialize EC2 image
   ec2img = ec2_image(cf['ec2']['image_id'])
