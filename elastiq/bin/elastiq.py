@@ -441,7 +441,7 @@ def poll_condor_queue():
   return None
 
 
-def poll_condor_status(current_workers_status):
+def poll_condor_status(current_workers_status, valid_ipv4s=None):
   """Polls HTCondor for the list of workers with the number of running jobs
   per worker. Returns an array of hosts, each one of them has a parameter that
   indicates the number of running jobs."""
@@ -468,6 +468,17 @@ def poll_condor_status(current_workers_status):
 
       host = xhost.text
       activity = xactivity.text
+
+      # If we have a list of valid IPv4 addresses, check if it matches.
+      if valid_ipv4s is not None:
+        try:
+          ip = gethostbycondorname(host)
+          if ip not in valid_ipv4s:
+            logging.debug("Poll status: %s ignored (no matching VM)" % host)
+            continue
+        except Exception:
+          logging.debug("Poll status: %s ignored (cannot resolve IP)" % host)
+          continue
 
       # Here we have host and activity. Activity might be, for instance,
       # 'Idle' or 'Busy'. We only check for 'Idle'
@@ -536,7 +547,16 @@ def check_vms(st):
 
   logging.info("Checking HTCondor VMs...")
   check_time = time.time()
-  new_workers_status = poll_condor_status( st['workers_status'] )
+
+  rvms = ec2_running_instances(st['workers_status'].keys())
+  rips = []
+  if rvms is not None:
+    for inst in rvms:
+      rips.append( inst.private_ip_address )
+  if len(rips) == 0:
+    rips = None
+
+  new_workers_status = poll_condor_status( st['workers_status'], rips )
 
   if new_workers_status is not None:
     #logging.debug(new_workers_status)
