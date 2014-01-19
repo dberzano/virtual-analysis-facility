@@ -75,8 +75,22 @@ user_data = None
 do_main_loop = True
 htcondor_ip_name_re = re.compile('^(([0-9]{1,3}-){3}[0-9]{1,3})\.')
 
+
 def type2str(any):
   return type(any).__name__
+
+
+def gethostbycondorname(name):
+  """Returns the IPv4 address of a host given its HTCondor name. In case
+  HTCondor uses NO_DNS, HTCondor names start with the IP address with dashes
+  instead of dots, and such IP is returned. In any other case, the function
+  returns the value returned by socket.gethostbyname()."""
+
+  m = htcondor_ip_name_re.match(name)
+  if m is not None:
+    return m.group(1).replace('-', '.')
+  else:
+    return socket.gethostbyname(name)
 
 
 def conf():
@@ -292,18 +306,12 @@ def ec2_running_instances(hostnames=None):
   if hostnames is not None:
     ips = []
     for h in hostnames:
-      m = htcondor_ip_name_re.match(h)
-      if m is not None:
-        ip = m.group(1).replace('-', '.')
-        ips.append(ip)
-        logging.debug("IPv4 %s guessed via HTCondor name %s" % (h, ip))
-      else:
-        try:
-          ipv4 = socket.gethostbyname(h)
-          ips.append(ipv4)
-        except Exception:
-          # Don't add host if IP address could not be found
-          logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
+      try:
+        ipv4 = gethostbycondorname(h)
+        ips.append(ipv4)
+      except Exception:
+        # Don't add host if IP address could not be found
+        logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
 
   # Add only running instances
   inst = []
@@ -351,7 +359,7 @@ def ec2_scale_down(hosts, valid_hostnames=None):
   ips = []
   for h in hosts:
     try:
-      ips.append( socket.gethostbyname(h) )
+      ips.append( gethostbycondorname(h) )
     except Exception:
       logging.warning("Cannot find IP for host to shut down %s: skipped" % h)
 
