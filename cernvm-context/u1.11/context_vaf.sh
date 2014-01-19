@@ -385,11 +385,22 @@ function ConfigAmiconfigPlugins {
 
 # Other Condor fixes
 function ConfigCondorHotfix() {
-  local Dst='/etc/condor/config.d/51hotfixes'
-  cat > "$Dst" <<"_EoF_"
+  local DstHotfix='/etc/condor/config.d/51hotfixes'
+  local DstConfig='/etc/condor/condor_config'
+  cat > "$DstHotfix" <<"_EoF_"
 UPDATE_COLLECTOR_WITH_TCP = True
 COLLECTOR_SOCKET_CACHE_SIZE = 1000
 _EoF_
+
+  # This fix finally allows Condor to run without FQDNs
+  cat "$DstConfig" | egrep -v '^NO_DNS|^DEFAULT_DOMAIN_NAME' > "$DstConfig".0
+  rm -f "$DstConfig"
+  cat >> "$DstConfig".0 <<"_EoF_"
+NO_DNS = True
+DEFAULT_DOMAIN_NAME = the-virtual-af
+_EoF_
+  mv "$DstConfig".0 "$DstConfig"
+
   touch /var/lock/subsys/condor
 }
 
