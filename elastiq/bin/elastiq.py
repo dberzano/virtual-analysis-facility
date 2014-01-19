@@ -15,6 +15,7 @@ import boto
 import socket
 import random
 import base64
+import re
 
 
 cf = {}
@@ -72,7 +73,7 @@ ec2h = None
 ec2img = None
 user_data = None
 do_main_loop = True
-
+htcondor_ip_name_re = re.compile('^(([0-9]{1,3}-){3}[0-9]{1,3})\.')
 
 def type2str(any):
   return type(any).__name__
@@ -291,12 +292,18 @@ def ec2_running_instances(hostnames=None):
   if hostnames is not None:
     ips = []
     for h in hostnames:
-      try:
-        ipv4 = socket.gethostbyname(h)
-        ips.append(ipv4)
-      except Exception:
-        # Don't add host if IP address could not be found
-        logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
+      m = htcondor_ip_name_re.match(h)
+      if m is not None:
+        ip = m.group(1).replace('-', '.')
+        ips.append(ip)
+        logging.debug("IPv4 %s guessed via HTCondor name %s" % (h, ip))
+      else:
+        try:
+          ipv4 = socket.gethostbyname(h)
+          ips.append(ipv4)
+        except Exception:
+          # Don't add host if IP address could not be found
+          logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
 
   # Add only running instances
   inst = []
