@@ -421,14 +421,14 @@ unset SSH_ASKPASS
 _EoF_
 }
 
-# Elastiq on the master
+# Elastiq and VAF client on the master
 function ConfigElastiq() {
   local Git='https://github.com/dberzano/virtual-analysis-facility.git'
   local GitAuth='https://dberzano@github.com/dberzano/virtual-analysis-facility.git'
   local UnprivUser='condor'
   local UnprivPrefix='/var/lib/condor/vaf'
   local BashVaf='/etc/profile.d/vaf.sh'
-  local Branch='master'
+  local Branch='fix-ip'
 
   if [ ! -d "$UnprivPrefix" ] ; then
 
