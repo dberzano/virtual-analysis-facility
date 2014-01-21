@@ -595,7 +595,14 @@ function Actions() {
 
 # The main function
 function Main() {
-  Actions 2>&1 | tee "$LogFile"
+  echo "=== VAF contextualization started on $(LANG=C date) ===" | tee -a "$LogFile"
+  if [ "$AMICONFIG_LOCAL_USER_DATA" != '' ] ; then
+    Actions 2>&1 | tee -a "$LogFile"
+  else
+    echo "Skipping VAF contextualization: not running from amiconfig.sh!" | tee -a "$LogFile"
+  fi
+  echo "=== VAF contextualization ended on $(LANG=C date) ===" | tee -a "$LogFile"
+  echo '' >> "$LogFile"
 }
 
 #
