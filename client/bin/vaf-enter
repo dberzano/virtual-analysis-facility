@@ -7,8 +7,13 @@
 #
 # Enters a Bash shell with PoD + Experiment Software environment set.
 #
-# Both local (client) and remote experiment environment is set through a set of
-# scripts. This is the order of execution:
+# Both "local" and "remote" experiment environment is set through a set of
+# scripts. "Local" means the host running vaf-enter; "remote" is the host
+# effectively running the PROOF master. If not using pod-remote, local and
+# remote hosts are the same.
+#
+# This is the order of execution:
+#
 #
 # LOCAL ENVIRONMENT
 #
@@ -19,12 +24,15 @@
 #   common.after
 #   local.after
 #
+#
 # PAYLOAD PREPARATION
+#
 #   The script is executed (not sourced!) locally (with VAF environment set) and
 #   its stdout output will be prepended to the remote environment. As a matter
 #   of fact it can be any executable, not just a script:
 #
 #   payload
+#
 #
 # REMOTE ENVIRONMENT
 #
@@ -34,6 +42,7 @@
 #   remote.conf
 #   common.after
 #   remote.after
+#
 #
 # All scripts are considered only if they exist. Scripts are searched for in the
 # following paths, in order:
