@@ -395,7 +395,7 @@ _EoF_
   # This fix finally allows Condor to run without FQDNs
   cat "$DstConfig" | egrep -v '^NO_DNS|^DEFAULT_DOMAIN_NAME' > "$DstConfig".0
   rm -f "$DstConfig"
-  cat >> "$DstConfig".0 <<"_EoF_"
+  cat >> "$DstConfig".0 <<_EoF_
 NO_DNS = True
 DEFAULT_DOMAIN_NAME = the-virtual-af
 NETWORK_INTERFACE = $PrivIp
