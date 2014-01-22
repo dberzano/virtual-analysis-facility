@@ -10,4 +10,4 @@
 #
 
 # Version of CMSSW (as reported by "scram list")
-export VafCmsswVersion='CMSSW_5_3_9_sherpa2beta2'
+export VafCmsswVersion='CMSSW_6_2_6'
