@@ -398,6 +398,7 @@ _EoF_
   cat >> "$DstConfig".0 <<"_EoF_"
 NO_DNS = True
 DEFAULT_DOMAIN_NAME = the-virtual-af
+NETWORK_INTERFACE = $PrivIp
 _EoF_
   mv "$DstConfig".0 "$DstConfig"
 
