@@ -554,14 +554,15 @@ def check_vms(st):
   logging.info("Checking HTCondor VMs...")
   check_time = time.time()
 
-  rvms = ec2_running_instances(st['workers_status'].keys())
+  # Retrieve *all* running instances (also the non-owned ones) and filter out
+  # statuses of workers which are not valid VMs: we are not interested in them
+  rvms = ec2_running_instances()
   rips = []
   if rvms is not None:
     for inst in rvms:
       rips.append( inst.private_ip_address )
   if len(rips) == 0:
     rips = None
-
   new_workers_status = poll_condor_status( st['workers_status'], rips )
 
   if new_workers_status is not None:
