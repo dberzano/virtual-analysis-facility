@@ -145,7 +145,7 @@ def log():
   File name is automatically selected. Returns the file name, or None if it
   cannot write to a file."""
 
-  format="%(asctime)s %(name)s %(levelname)s %(message)s"
+  format="%(asctime)s %(name)s %(levelname)s [%(funcName)s] %(message)s"
   datefmt="%Y-%m-%d %H:%M:%S"
   level=logging.DEBUG
 
