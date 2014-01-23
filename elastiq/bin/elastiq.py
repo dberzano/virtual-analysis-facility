@@ -313,6 +313,12 @@ def ec2_running_instances(hostnames=None):
         # Don't add host if IP address could not be found
         logging.warning("Ignoring hostname %s: can't reslove IPv4 address" % h)
 
+  if hostnames is not None:
+    logging.debug("Input hostnames: %s" % (','.join(hostnames)))
+    logging.debug("Input IPs: %s" % (','.join(ips)))
+  else:
+    logging.debug("No input hostnames given")
+
   # Add only running instances
   inst = []
   for r in res:
