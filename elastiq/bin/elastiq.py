@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
+#
+# elastiq.py -- by Dario Berzano <dario.berzano@cern.ch>
+#
 # Monitors the HTCondor queue for new jobs and idle nodes, and take proper
 # actions.
+#
 
 import time
 import logging, logging.handlers
@@ -9,13 +13,21 @@ import signal
 import sys
 import subprocess
 import os
-import xml.etree.ElementTree as ET
-from ConfigParser import SafeConfigParser
 import boto
 import socket
 import random
 import base64
 import re
+
+from ConfigParser import SafeConfigParser
+
+import xml.etree.ElementTree as ET
+try:
+  # Python 2.6
+  from xml.etree.ElementTree import ParseError as XmlParseError
+except ImportError:
+  # Python 2.7+
+  from xml.parsers.expat import ExpatError as XmlParseError
 
 
 cf = {}
@@ -461,19 +473,49 @@ def poll_condor_status(current_workers_status, valid_ipv4s=None):
   try:
 
     xdoc = ET.fromstring(ret['output'])
+    #xdoc = ET.fromstring("this is clearly invaild XML")
     for xc in xdoc.findall("./c"):
 
-      xtype = xc.find("./a[@n='MyType']/s")
-      if xtype is None or xtype.text != 'Machine': continue
+      # List of the parameters to search for. XML structure is, for each job
+      # slot:
+      # <c>
+      #   <a n="MyType">Machine</a>
+      #   <a n="Machine">host.name</a>
+      #   <a n="Activity">Idle</a>
+      # </c>
+      params = {
+        'MyType': None,
+        'Machine': None,
+        'Activity': None
+      }
 
-      xhost = xc.find("./a[@n='Machine']/s")
-      if xhost is None: continue
+      for xa in xc.findall("./a"):
+        n = xa.get("n")
+        if n is None:
+          continue
+        for k in params:
+          if n == k:
+            xs = xa.find("./s")
+            if xs is not None:
+              params[n] = xs.text
 
-      xactivity = xc.find("./a[@n='Activity']/s")
-      if xactivity is None: continue
+      # Do we have all the needed parameters?
+      valid = True
+      for k,v in params.iteritems():
+        if v is None:
+          valid = False
+          break
+      if valid == False:
+        continue
 
-      host = xhost.text
-      activity = xactivity.text
+      # If it is not a machine, skip it
+      if params['MyType'] != 'Machine':
+        continue
+
+      # Simpler variables
+      host = params['Machine']
+      activity = params['Activity']
+      logging.debug("Found: %s is %s" % (host,activity))
 
       # If we have a list of valid IPv4 addresses, check if it matches.
       if valid_ipv4s is not None:
@@ -503,8 +545,8 @@ def poll_condor_status(current_workers_status, valid_ipv4s=None):
         else:
           workers_status[host]['jobs'] = 1
 
-  except ET.ParseError, e:
-    logging.error("Invalid XML!")
+  except XmlParseError as e:
+    logging.error("Invalid XML: %s" % e)
     return None
 
   # At this point we have the previous state and the current state saved
