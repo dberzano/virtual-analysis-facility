@@ -34,7 +34,7 @@ if [ "$1" == 'install' ] ; then
 elif [ "$1" == 'rpm' ] ; then
   python setup.py bdist_rpm --post-install=rpm/post-install.sh --post-uninstall=rpm/post-uninstall.sh
 elif [ "$1" == 'distclean' ] ; then
-  rm -rf build/ dist/ Elastiq.egg-info/
+  rm -rf build/ dist/ *.egg-info/
 else
   python setup.py "$@"
 fi
