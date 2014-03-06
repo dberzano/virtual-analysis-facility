@@ -48,25 +48,23 @@ Lock='/var/lock/subsys/elastiq'
 
 # Default control variables
 export elastiqScreenName='__|elastiq|__'
-export elastiqRealBin=$( FindFirst "$PWD/elastiq-real.py" '/usr/bin/elastiq-real.py' )
-export elastiqCommand="python $elastiqRealBin"
+export elastiqRealBin=$( FindFirst "$(which elastiq-real.py)" "$PWD/elastiq-real.py" '/usr/bin/elastiq-real.py' )
 export elastiqLogFileDir=${elastiqLogFileDir:-/var/log/elastiq}  # defaults to syswide path
 export elastiqLogFile="${elastiqLogFileDir}/elastiq.log"
+export elastiqConfFile=${elastiqConfFile:-/etc/elastiq.conf}  # defaults to syswide file
 export elastiqUser=${elastiqUser:-elastiq}  # defaults to 'elastiq'
+export elastiqCommand="python $elastiqRealBin --logdir=$elastiqLogFileDir --config=$elastiqConfFile"
 
 # Permissions for logfile dir
 mkdir -p "$elastiqLogFileDir" 2> /dev/null
 chown "$elastiqUser" "$elastiqLogFileDir" 2> /dev/null
-chmod 0700 "$elastiqLogFileDir" 2> /dev/null  # might contain sensitive data
+chmod 0770 "$elastiqLogFileDir" 2> /dev/null  # might contain sensitive data
 touch "$elastiqLogFileDir"/.test
 if [ $? != 0 ] ; then
   echo "Cannot access log directory $elastiqLogFileDir" >&2
   exit 3
 fi
 rm -f "$elastiqLogFileDir"/.test
-
-echo $elastiqRealBin
-exit 0
 
 #
 # Functions
@@ -141,8 +139,8 @@ function start() {
     else
       Cmd="/bin/sh -c"
     fi
-    echo $Cmd "screen -dmS \"$elastiqScreenName\" /bin/sh -c \"$elastiqCommand 2> $elastiqLogFileDir/elastiq.err\"" > /dev/null 2>&1
-    echo $Cmd "screen -S \"$elastiqScreenName\" -X multiuser on"
+    $Cmd "screen -dmS \"$elastiqScreenName\" /bin/sh -c \"$elastiqCommand 2> $elastiqLogFileDir/elastiq.err\"" > /dev/null 2>&1
+    $Cmd "screen -S \"$elastiqScreenName\" -X multiuser on"
     $Cmd "screen -S \"$elastiqScreenName\" -X acladd root"
 
     sleep 1
