@@ -11,6 +11,7 @@ import time
 import logging, logging.handlers
 import signal
 import sys
+import getopt
 import subprocess
 import os
 import boto
@@ -28,7 +29,6 @@ try:
 except ImportError:
   # Python 2.7+
   from xml.parsers.expat import ExpatError as XmlParseError
-
 
 cf = {}
 cf['elastiq'] = {
@@ -105,7 +105,9 @@ def gethostbycondorname(name):
     return socket.gethostbyname(name)
 
 
-def conf():
+def conf(config_file):
+  """Parses the configuration file given as input. Returns True if it was read
+  correctly, False otherwise."""
 
   global cf
 
@@ -124,17 +126,11 @@ def conf():
   # etc dir at the same level of the bin dir containing this script
   close_etc_path = os.path.realpath( os.path.realpath(os.path.dirname(__file__)) + "/../etc" )
 
-  # The last file has precedence over the first file
-  config_files = [
-    "/etc/elastiq.conf",
-    "%s/elastiq.conf" % close_etc_path,
-    os.path.expanduser("~/.elastiq.conf")
-  ]
-  cf_parser.read(config_files)
-
-  # Print config files
-  for f in config_files:
-    logging.info("Configuration file: %s" % f)
+  # Try to open configuration file (read() can get a list of files as well)
+  conf_file_ok = True
+  if len(cf_parser.read(config_file)) == 0:
+    logging.warning("Cannot read configuration file %s" % config_file)
+    conf_file_ok = False
 
   for sec_name,sec_content in cf.iteritems():
 
@@ -151,8 +147,9 @@ def conf():
       except Exception, e:
         logging.info("Configuration: %s.%s = %s (default)", sec_name, key, str(val))
 
+  return conf_file_ok
 
-def log():
+def log(log_directory):
   """Configures logging. Outputs log to the console and, optionally, to a file.
   File name is automatically selected. Returns the file name, or None if it
   cannot write to a file."""
@@ -164,25 +161,28 @@ def log():
   # Log to console
   logging.basicConfig(level=level, format=format, datefmt=datefmt, stream=sys.stdout)
 
-  # Log directory and file
-  dir = os.path.realpath( os.path.realpath(os.path.dirname(__file__)) + "/../var/log" )
-  filename = "%s/elastiq.log" % dir
-
-  # Try to create log directory and file
-  try:
-    if not os.path.isdir(dir):
-      os.makedirs(dir, 0755)
-    log_file = logging.handlers.RotatingFileHandler(filename, mode="a", maxBytes=1000000, backupCount=30)
-    log_file.setLevel(level)
-    log_file.setFormatter( logging.Formatter(format, datefmt) )
-    logging.getLogger("").addHandler(log_file)
-    log_file.doRollover()  # rotate immediately
-  except Exception, e:
-    logging.warning("Cannot log to file %s: %s: %s" % (filename, type(e).__name__, e))
-    return None
-
   # Silence boto errors
   logging.getLogger("boto").setLevel(logging.CRITICAL)
+
+  # Log file
+  if log_directory is not None:
+    filename = "%s/elastiq.log" % log_directory
+
+    # Try to create log directory and file
+    try:
+      if not os.path.isdir(log_directory):
+        os.makedirs(log_directory, 0755)
+      log_file = logging.handlers.RotatingFileHandler(filename, mode="a", maxBytes=1000000, backupCount=30)
+      log_file.setLevel(level)
+      log_file.setFormatter( logging.Formatter(format, datefmt) )
+      logging.getLogger("").addHandler(log_file)
+      log_file.doRollover()  # rotate immediately
+    except Exception, e:
+      logging.warning("Cannot log to file %s: %s: %s" % (filename, type(e).__name__, e))
+      return None
+  else:
+    # No log directory
+    return None
 
   return filename
 
@@ -720,22 +720,43 @@ def change_vms_allegedly_running(st, delta):
     })
 
 
-def main():
+def main(argv):
 
   global ec2h, ec2img, user_data
 
+  config_file = None
+  log_directory = None
+
+  # Parse options
+  try:
+    opts, args = getopt.getopt(argv, '', [ 'config=', 'logdir=' ])
+    for o, a in opts:
+      if o == '--config':
+        config_file = a
+      elif o == '--logdir':
+        log_directory = a
+    if config_file is None:
+      raise getopt.GetoptError('some mandatory options were not specified.')
+  except getopt.GetoptError as e:
+    print "elastiq: %s" % e
+    print 'Specify a configuration file with --config= and a log file directory with --logdir='
+    sys.exit(1)
+
   # Configure logging
-  lf = log()
+  lf = log(log_directory)
   if lf is None:
     logging.warning("Cannot log to file, only console will be used!")
   else:
     logging.info("Logging to file %s and to console - log files are rotated" % lf)
 
+
   # Register signal
   signal.signal(signal.SIGINT, exit_main_loop)
 
   # Read configuration
-  conf()
+  if conf(config_file) == False:
+    logging.error("Cannot contiue without configuration file")
+    sys.exit(2)
 
   # Initialize the EC2 handler
   ec2h = boto.connect_ec2_endpoint(
@@ -814,4 +835,4 @@ def main():
 #
 
 if __name__ == "__main__":
-  main()
+  main(sys.argv[1:])

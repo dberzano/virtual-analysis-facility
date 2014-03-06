@@ -13,7 +13,9 @@ if __name__ == '__main__':
     # Packages
     packages = [ 'elastiq' ],
     zip_safe = False,
-    scripts = [ 'elastiq/bin/elastiq' ],  # this one goes in <prefix>/bin
+    scripts = [
+      'elastiq/bin/elastiq-real.py',
+      'elastiq/bin/elastiq' ],  # these ones go to <prefix>/bin
     include_package_data = True,
     package_data = {
       '': [ 'etc/*' ]
