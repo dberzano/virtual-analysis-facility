@@ -6,11 +6,11 @@ fi
 mkdir -p /var/lib/elastiq /var/log/elastiq
 chmod u=rwx,g=rwx,o=x /var/lib/elastiq /var/log/elastiq
 chown elastiq:elastiq /var/lib/elastiq /var/log/elastiq
-ln -nfs /usr/bin/elastiq /etc/init.d/elastiq
+ln -nfs /usr/bin/elastiqctl /etc/init.d/elastiq
 chkconfig --add elastiq
 
 if [ ! -e /etc/elastiq.conf ] ; then
-  cat > /etc/elastiq.conf <_EoF_
+  cat > /etc/elastiq.conf <<_EoF_
 [elastiq]
 sleep_s = 5
 check_queue_every_s = 15
@@ -40,6 +40,7 @@ flavour =
 user_data_b64 =
 _EoF_
 fi
+
 chown elastiq:elastiq /etc/elastiq.conf
 chmod u=rw,g=rw,o= /etc/elastiq.conf
 

@@ -47,18 +47,18 @@ Lock='/var/lock/subsys/elastiq'
 
 # Default control variables
 export elastiqScreenName='__|elastiq|__'
-export elastiqRealBin=$( FindFirst "$(which elastiq-real.py)" "$PWD/elastiq-real.py" '/usr/bin/elastiq-real.py' )
+export elastiqRealBin=$( FindFirst "$(which elastiq-real.py 2> /dev/null)" "$PWD/elastiq-real.py" '/usr/bin/elastiq-real.py' )
 export elastiqLogFileDir=${elastiqLogFileDir:-/var/log/elastiq}  # defaults to syswide path
 export elastiqLogFile="${elastiqLogFileDir}/elastiq.log"
 export elastiqConfFile=${elastiqConfFile:-/etc/elastiq.conf}  # defaults to syswide file
 export elastiqUser=${elastiqUser:-elastiq}  # defaults to 'elastiq'
-export elastiqCommand="python $elastiqRealBin --logdir=$elastiqLogFileDir --config=$elastiqConfFile"
+export elastiqCommand="python $elastiqRealBin --logdir=\"$elastiqLogFileDir\" --config=\"$elastiqConfFile\""
 
 # Permissions for logfile dir
 mkdir -p "$elastiqLogFileDir" 2> /dev/null
 chown "$elastiqUser" "$elastiqLogFileDir" 2> /dev/null
 chmod 0770 "$elastiqLogFileDir" 2> /dev/null  # might contain sensitive data
-touch "$elastiqLogFileDir"/.test
+touch "$elastiqLogFileDir"/.test 2> /dev/null
 if [ $? != 0 ] ; then
   echo "Cannot access log directory $elastiqLogFileDir" >&2
   exit 3

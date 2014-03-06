@@ -23,7 +23,7 @@ if __name__ == '__main__':
     zip_safe = False,
     scripts = [
       'elastiq/bin/elastiq-real.py',
-      'elastiq/bin/elastiq',
+      'elastiq/bin/elastiqctl',
       'elastiq/bin/elastiq-test-boto.py', ],  # these ones go to <prefix>/bin
     include_package_data = True,
     package_data = {

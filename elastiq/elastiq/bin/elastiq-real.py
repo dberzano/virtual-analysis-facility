@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import elastiq
 import sys
 if __name__ == "__main__":
