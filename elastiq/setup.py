@@ -1,14 +1,22 @@
+#
+# setup.py -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Installation of elastiq via setuptools. Install with:
+#
+#   python setup.py [-prefix=<instprefix>]
+#
+
 from setuptools import setup
 
 if __name__ == '__main__':
   setup(
 
     # Metadata
-    name = 'Elastiq',
+    name = 'elastiq',
     version = '0.9.0',
     author = 'Dario Berzano',
     author_email = 'dario.berzano@cern.ch',
-    description = 'Monitor a batch system to scale up/down a virtual cluster',
+    description = 'Monitor a batch system status and queue to scale up/down a virtual cluster',
 
     # Packages
     packages = [ 'elastiq' ],

@@ -1,3 +1,20 @@
+#
+# elastiq.conf.example -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Sample configuration file for the elastiq daemon. Remember that this file
+# does contain senstive information (EC2 credentials, and the user-data of
+# worker nodes), so protect it in a way that only elastiq can read it!
+#
+# For instance, if you save it in the default location:
+#
+#   /etc/elastiq.conf
+#
+# you can modify owner and permissions appropriately like this:
+#
+#   chown elastiq:elastiq /etc/elastiq.conf
+#   chmod u=rw,g=rw,o= /etc/elastiq.conf
+#
+
 [elastiq]
 sleep_s = 5
 check_queue_every_s = 15

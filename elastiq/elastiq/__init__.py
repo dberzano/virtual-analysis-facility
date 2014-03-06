@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 #
-# elastiq.py -- by Dario Berzano <dario.berzano@cern.ch>
+# __init__.py -- by Dario Berzano <dario.berzano@cern.ch>
 #
-# Monitors the HTCondor queue for new jobs and idle nodes, and take proper
-# actions.
+# Main file of elastiq. Elastiq monitors the HTCondor queue for new jobs and
+# idle nodes, and takes proper actions by launching and shutting down VMs via
+# its EC2 interface.
 #
 
 import time
