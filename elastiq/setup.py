@@ -12,8 +12,12 @@ if __name__ == '__main__':
 
     # Packages
     packages = [ 'elastiq' ],
-    #zip_safe = False,
-    scripts = [ 'elastiq/bin/elastiq' ],
+    zip_safe = False,
+    scripts = [ 'elastiq/bin/elastiq' ],  # this one goes in <prefix>/bin
+    include_package_data = True,
+    package_data = {
+      '': [ 'etc/*' ]
+    },
 
     # Dependencies
     install_requires = [

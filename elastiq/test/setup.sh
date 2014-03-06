@@ -11,4 +11,10 @@ rm -rf "$PyBase"
 mkdir -p "$PyFull"
 
 rm -rf build/ dist/ Elastiq.egg-info/
-exec python setup.py install --prefix="$PyBase"
+if [ "$1" == '' ] ; then
+  python setup.py install --prefix="$PyBase"
+elif [ "$1" == 'rpm' ] ; then
+  python setup.py bdist_rpm --post-install=rpm/post-install.sh --post-uninstall=rpm/post-uninstall.sh
+else
+  python setup.py "$@"
+fi
