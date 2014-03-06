@@ -1,6 +1,7 @@
 #!/bin/bash
 
-cd $( dirname "$0" )/..
+cd $( dirname "$0" )
+cd ..
 
 export PyBase='/tmp/testpybase'
 export PyFull="${PyBase}/lib/python2.6/site-packages"
@@ -10,5 +11,4 @@ rm -rf "$PyBase"
 mkdir -p "$PyFull"
 
 rm -rf build/ dist/ Elastiq.egg-info/
-
 exec python setup.py install --prefix="$PyBase"
