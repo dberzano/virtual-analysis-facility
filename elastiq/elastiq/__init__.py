@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 #
 # __init__.py -- by Dario Berzano <dario.berzano@cern.ch>
 #
@@ -829,11 +827,3 @@ def main(argv):
     time.sleep( cf['elastiq']['sleep_s'] )
 
   logging.info("Exiting gracefully!")
-
-
-#
-# Execute main() function when invoked as an executable
-#
-
-if __name__ == "__main__":
-  main(sys.argv[1:])
