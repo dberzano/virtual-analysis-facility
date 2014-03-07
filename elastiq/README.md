@@ -53,13 +53,6 @@ See installation options with:
     python setup.py --help
 
 
-Configuration
--------------
-
-See the provided example `elastiq.conf.example` under the elastiq
-installation directory.
-
-
 Run in foreground
 -----------------
 
@@ -76,3 +69,48 @@ Where:
 If run like this, it will stay in the foreground. It is also possible
 to run it as a system service: a script for running it in background
 is provided.
+
+
+Run in background
+-----------------
+
+To run it in the background use the `elastiqctl` command. It is
+recommended to run it as an unprivileged user.
+
+Syntax:
+
+    elastiqctl [start|stop|status|restart|log|conf]
+
+Where:
+
+*   **start**, **stop** and **restart** are self-explanatory;
+*   **status** tells whether the daemon is running;
+*   **log** shows the log of elastiq in real time (quit with Ctrl-C);
+*   **conf** shows some configuration information like the Python
+    version, configuration file in use and log files directory.
+
+
+### Default configuration
+
+When running as unprivileged user:
+
+*   **log directory:** `~/.elastiq/log`
+*   **configuration file:** `~/.elastiq/elastiq.conf`
+
+When running as root:
+
+*   **log directory:** `/var/log/elastiq`
+*   **configuration file:** `/etc/elastiq.conf`
+
+
+Configuration
+-------------
+
+See the provided example `elastiq.conf.example` under the elastiq
+installation directory.
+
+
+Plugins
+-------
+
+See the `htcondor.py` plugin provided as an example.
