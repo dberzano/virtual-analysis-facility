@@ -27,7 +27,7 @@ if __name__ == '__main__':
       'elastiq/bin/elastiq-test-boto.py', ],  # these ones go to <prefix>/bin
     include_package_data = True,
     package_data = {
-      '': [ 'etc/*' ]
+      '': [ 'etc/*', 'plugins/*.py' ]
     },
 
     # Dependencies
