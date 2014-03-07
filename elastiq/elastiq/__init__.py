@@ -630,7 +630,8 @@ def main(argv):
   # Load batch plugin
   batch_name = cf['elastiq']['batch_plugin']
   try:
-    #from elastiq.plugins import htcondor as BatchPlugin
+    # See: http://stackoverflow.com/questions/6677424/how-do-i-import-variable-packages-in-python-like-using-variable-variables-i
+    # Similar to: from elastiq.plugins import htcondor as BatchPlugin
     BatchPlugin = getattr(__import__("elastiq.plugins", fromlist=[ batch_name ]), batch_name)
   except (ImportError, AttributeError) as e:
     logging.fatal("Cannot find batch plugin \"%s\"" % batch_name)
