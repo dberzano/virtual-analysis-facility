@@ -39,7 +39,10 @@ cf['elastiq'] = {
   'idle_for_time_s': 3600,
 
   # Batch plugin
-  'batch_plugin': 'htcondor'
+  'batch_plugin': 'htcondor',
+
+  # Log level (lower is more verbose)
+  'log_level': 0
 
 }
 cf['ec2'] = {
@@ -138,9 +141,9 @@ def log(log_directory):
   File name is automatically selected. Returns the file name, or None if it
   cannot write to a file."""
 
-  format="%(asctime)s %(name)s %(levelname)s [%(module)s.%(funcName)s] %(message)s"
-  datefmt="%Y-%m-%d %H:%M:%S"
-  level=logging.DEBUG
+  format = "%(asctime)s %(name)s %(levelname)s [%(module)s.%(funcName)s] %(message)s"
+  datefmt = "%Y-%m-%d %H:%M:%S"
+  level = 0
 
   # Log to console
   logging.basicConfig(level=level, format=format, datefmt=datefmt, stream=sys.stdout)
@@ -173,7 +176,7 @@ def log(log_directory):
 
 def exit_main_loop(signal, frame):
   global do_main_loop
-  logging.debug("Termination requested: we will exit gracefully soon")
+  logging.info("Termination requested: we will exit gracefully soon")
   do_main_loop = False
 
 
@@ -620,6 +623,9 @@ def main(argv):
   if conf(config_file) == False:
     logging.error("Cannot contiue without configuration file")
     sys.exit(2)
+
+  # Adjust log level
+  logging.getLogger("").setLevel( cf['elastiq']['log_level'] )
 
   # Load batch plugin
   batch_name = cf['elastiq']['batch_plugin']

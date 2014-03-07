@@ -25,6 +25,7 @@ n_jobs_per_vm = 4
 idle_for_time_s = 3600
 estimated_vm_deploy_time_s = 600
 batch_plugin = htcondor
+log_level = 0
 
 [debug]
 #dry_run_shutdown_vms = 1
