@@ -16,7 +16,7 @@ if [ `pwd` == '\\' ] ; then
   exit 1
 fi
 
-export PyBase="/tmp/pythonpath-$USER"
+export PyBase="/tmp/pythonpath"
 export PyFull="${PyBase}/lib/python2.6/site-packages"
 export PYTHONPATH="$PyFull"
 export PATH="$PyBase/bin:$PATH"
