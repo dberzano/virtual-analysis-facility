@@ -1,8 +1,0 @@
-executable = condor_job.sh
-universe = vanilla
-#input = test.data
-output = condor_job.out
-error = condor_job.err
-#log = test.log
-
-queue 100
