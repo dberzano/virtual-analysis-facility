@@ -18,6 +18,7 @@
 # LOCAL ENVIRONMENT
 #
 #   common.before
+#   vaf.conf
 #   local.before
 #   local.conf
 #   <PoD environment from $VafConf_LocalPodLocation/PoD_env.sh>
@@ -38,6 +39,7 @@
 #
 #   <output of payload>
 #   common.before
+#   vaf.conf
 #   remote.before
 #   remote.conf
 #   common.after
@@ -45,12 +47,13 @@
 #
 #
 # All scripts are considered only if they exist. Scripts are searched for in the
-# following paths, in order:
+# following paths, in an orderly fashion:
 #
+#   /etc/vaf
 #   <dir of this script>/../etc
 #   ~/.vaf
 #
-# System-wide scripts have precedence over user's (~/.vaf) scripts.
+# This means that system-wide scripts have precedence over user's (~/.vaf).
 #
 # The PoD_env.sh exists if PoD is correctly installed. A failure in loading PoD
 # environment is fatal.
@@ -69,7 +72,7 @@ export ErrLocalCf=2
 export ErrKey=3
 
 # Configuration search path (colon-separated)
-export ConfPath=$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
+export ConfPath=/etc/vaf:$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
 
 #
 # Functions
@@ -417,7 +420,7 @@ function Main() {
   #
 
   # Before PoD
-  local ConfLocalPre=( 'common.before' 'local.before' 'local.conf' )
+  local ConfLocalPre=( 'common.before' 'vaf.conf' 'local.before' 'local.conf' )
   for Cf in ${ConfLocalPre[@]} ; do
     LoadConf "$Cf" || exit $ErrLocalCf
   done
@@ -442,6 +445,7 @@ function Main() {
   # interpreted locally)
   local ConfRemote=(
     'common.before'
+    'vaf.conf'
     'remote.before'
     'remote.conf'
     'common.after'
