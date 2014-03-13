@@ -445,13 +445,13 @@ function Main() {
     _vaf_p "VAF configuration file not found."
     VafUserConfExample=$( FindConf -f 'vaf.conf.example' )
     if [ $? == 1 ] ; then
-      _vaf_p "Please create a $VafUserConfDest file with your settings."
+      _vaf_p "Please store your settings in $VafUserConfDest."
       exit $ErrDefaultCf
     elif ! mkdir -p $(dirname "$VafUserConfDest") > /dev/null 2>&1 ; then
       _vaf_p "Problems creating $(dirname "$VafUserConfDest")."
       exit $ErrDefaultCf
     elif ! cp "$VafUserConfExample" "$VafUserConfDest" > /dev/null 2>&1 ; then
-      _vaf_p "Problems copying $VafUserConfExample to $VafUserConfDest"
+      _vaf_p "Problems copying $VafUserConfExample to $VafUserConfDest."
       exit $ErrDefaultCf
     fi
     _vaf_p "A default one has been created in $VafUserConfDest."
