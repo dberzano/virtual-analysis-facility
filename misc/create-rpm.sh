@@ -28,6 +28,7 @@ export ConfigFiles=$( find etc -type f -and -not -name '*.example' -exec echo --
 fpm \
   -s dir \
   -t rpm \
+  -a all \
   --force \
   --version "$(cat VERSION)" \
   --name vaf-client \
