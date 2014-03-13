@@ -22,6 +22,9 @@ echo "> Destination: $PackageDestDir"
 rm -rf "$PackageWorkDir"
 mkdir -p "$PackageDestDir" "$PackageWorkDir"
 
+# Configuration files: all in etc but without *.example files
+export ConfigFiles=$( find etc -type f -and -not -name '*.example' -exec echo --config-files '{}' \; )
+
 fpm \
   -s dir \
   -t rpm \
@@ -34,7 +37,7 @@ fpm \
   --maintainer "$Author" \
   --description 'Client for the Virtual Analysis Facility' \
   --url 'https://github.com/dberzano/virtual-analysis-facility' \
-  --config-files 'etc' \
+  $ConfigFiles \
   --prefix '/' \
   --exclude '.git' \
   --exclude '.gitignore' \
@@ -48,7 +51,7 @@ fpm \
 rm -rf "$PackageWorkDir"
 
 # Package
-Rpm=$( ls -1rt "$PackageDestDir"/*.rpm | tail -n1 )
+export Rpm=$( ls -1rt "$PackageDestDir"/*.rpm | tail -n1 )
 
 echo '=== List of the packages directory ==='
 ls -l "$PackageDestDir"
