@@ -18,6 +18,7 @@
 # LOCAL ENVIRONMENT
 #
 #   common.before
+#   vaf.conf
 #   local.before
 #   local.conf
 #   <PoD environment from $VafConf_LocalPodLocation/PoD_env.sh>
@@ -38,6 +39,7 @@
 #
 #   <output of payload>
 #   common.before
+#   vaf.conf
 #   remote.before
 #   remote.conf
 #   common.after
@@ -45,12 +47,13 @@
 #
 #
 # All scripts are considered only if they exist. Scripts are searched for in the
-# following paths, in order:
+# following paths, in an orderly fashion:
 #
+#   /etc/vaf/default
 #   <dir of this script>/../etc
 #   ~/.vaf
 #
-# System-wide scripts have precedence over user's (~/.vaf) scripts.
+# This means that system-wide scripts have precedence over user's (~/.vaf).
 #
 # The PoD_env.sh exists if PoD is correctly installed. A failure in loading PoD
 # environment is fatal.
@@ -67,9 +70,11 @@ export VafDebug
 export ErrArgs=1
 export ErrLocalCf=2
 export ErrKey=3
+export ErrDefaultCf=4
+export ErrUpdateCf=5
 
 # Configuration search path (colon-separated)
-export ConfPath=$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
+export ConfPath=/etc/vaf/default:$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
 
 #
 # Functions
@@ -247,6 +252,16 @@ function vafwait() {
   done
 }
 
+# Find the specified configuration file. Usage:
+#   FindConf [-f] <source_cf>
+#
+# -f rises an error also when file is not found. Returns 0 on success, nonzero
+# on error
+function FindConf() {
+  HandleConf "$@" '' find
+  return $?
+}
+
 # Loads (sources) the specified configuration file. Usage:
 #   LoadConf [-f] <source_cf>
 #
@@ -340,6 +355,9 @@ function HandleConf() {
         "$Cf" >> "$Out"
         echo '' >> "$Out"
       ;;
+      find)
+        echo "$Cf"
+      ;;
     esac
 
   else
@@ -416,8 +434,33 @@ function Main() {
   # Local environment
   #
 
+  # Check if vaf.conf exists in the home directory. If it does not, create a
+  # default one and exit immediately.
+
+  local VafUserConf VafUserConfDest VafUserConfExample
+
+  VafUserConfDest="$HOME/.vaf/vaf.conf"
+  VafUserConf=$( FindConf -f 'vaf.conf' )
+  if [ $? == 1 ] ; then
+    _vaf_p "VAF configuration file not found."
+    VafUserConfExample=$( FindConf -f 'vaf.conf.example' )
+    if [ $? == 1 ] ; then
+      _vaf_p "Please store your settings in $VafUserConfDest."
+      exit $ErrDefaultCf
+    elif ! mkdir -p $(dirname "$VafUserConfDest") > /dev/null 2>&1 ; then
+      _vaf_p "Problems creating $(dirname "$VafUserConfDest")."
+      exit $ErrDefaultCf
+    elif ! cp "$VafUserConfExample" "$VafUserConfDest" > /dev/null 2>&1 ; then
+      _vaf_p "Problems copying $VafUserConfExample to $VafUserConfDest."
+      exit $ErrDefaultCf
+    fi
+    _vaf_p "A default one has been created in $VafUserConfDest."
+    _vaf_p "Edit it to your needs and run vaf-enter again."
+    exit $ErrUpdateCf
+  fi
+
   # Before PoD
-  local ConfLocalPre=( 'common.before' 'local.before' 'local.conf' )
+  local ConfLocalPre=( 'common.before' 'vaf.conf' 'local.before' 'local.conf' )
   for Cf in ${ConfLocalPre[@]} ; do
     LoadConf "$Cf" || exit $ErrLocalCf
   done
@@ -442,6 +485,7 @@ function Main() {
   # interpreted locally)
   local ConfRemote=(
     'common.before'
+    'vaf.conf'
     'remote.before'
     'remote.conf'
     'common.after'

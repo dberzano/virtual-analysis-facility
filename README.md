@@ -1,4 +1,8 @@
-virtual-analysis-facility
-=========================
+Virtual Analysis Facility client
+================================
 
-Virtual Analysis Facility based on PROOF and CernVM
+Client for the Virtual Analysis Facility based on
+[PROOF](root.cern.ch/drupal/content/proof) and
+[CernVM](http://cernvm.cern.ch/).
+
+Available as part of CernVM 3.

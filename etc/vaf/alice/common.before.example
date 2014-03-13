@@ -13,7 +13,7 @@
 export alien_API_USER='dberzano'
 
 # The desired AliRoot version (all dependencies are automatically set)
-export VafAliRootVersion='v5-05-60-AN'
+export VafAliRootVersion='v5-05-77-AN'
 
 # Set to 1 to use software from CernVM-FS locally
 export UseCvmfsLocally=0

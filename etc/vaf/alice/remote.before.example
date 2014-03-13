@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#
+# alice/remote.before -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Part of virtual-analysis-facility.
+#
+# Sample user configuration file for using VAF in ALICE. This script will be
+# sourced both locally and on the remote machine.
+#
+
+# The urltemplate: part in the AliEn dataset definition
+# Example: xpd.datasetsrc alien cache:/tmp/ali-ds-cache urltemplate:$VafDataSetStorage cacheexpiresecs:3600
+export VafDataSetStorage="ALICE::Torino::SE"
