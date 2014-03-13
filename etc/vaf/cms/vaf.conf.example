@@ -1,0 +1,2 @@
+# Version of CMSSW (as reported by "scram list")
+export VafCmsswVersion='CMSSW_6_2_6'

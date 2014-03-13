@@ -1,0 +1,6 @@
+# AliEn username
+export alien_API_USER=$USER
+
+# Desired AliRoot version: dependencies will be automatically set
+# See available versions at: http://alimonitor.cern.ch/packages/
+export VafAliRootVersion="v5-05-77-AN"
