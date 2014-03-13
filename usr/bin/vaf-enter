@@ -49,7 +49,7 @@
 # All scripts are considered only if they exist. Scripts are searched for in the
 # following paths, in an orderly fashion:
 #
-#   /etc/vaf
+#   /etc/vaf/default
 #   <dir of this script>/../etc
 #   ~/.vaf
 #
@@ -72,7 +72,7 @@ export ErrLocalCf=2
 export ErrKey=3
 
 # Configuration search path (colon-separated)
-export ConfPath=/etc/vaf:$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
+export ConfPath=/etc/vaf/default:$(A=`dirname "$0"`;A=`dirname "$A"`;echo "$A/etc"):"$HOME/.vaf"
 
 #
 # Functions
