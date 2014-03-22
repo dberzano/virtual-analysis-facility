@@ -87,7 +87,7 @@ function _vaf_p() {
     N='-n'
     shift
   fi
-  echo -e $N "\033[1m$1\033[m"
+  echo -e $N "\033[1m$1\033[m" >&2
 }
 
 # Printout only when debug is on
