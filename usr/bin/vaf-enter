@@ -514,10 +514,18 @@ function Main() {
   if [ "$VafUserHost" != '' ] ; then
     _vaf_p "Entering VAF environment: $VafUserHost"
   else
-    _vaf_p 'Entering local VAF environment'
+    _vaf_p 'Entering VAF environment'
   fi
-  _vaf_p 'Remember: you are still in a shell on your local computer!'
-  _vaf_p 'Type "exit" to return to your previous shell.'
+
+  _vaf_p 'To exit the VAF environment, just type "exit".'
+
+  if [ "$SSH_CLIENT" == '' ] ; then
+    _vaf_p 'Remember: you are still in a shell on your local computer!'
+  else
+    _vaf_p 'Please note that you are *not* on your computer!'
+    _vaf_p 'You are connected to a remote machine via SSH!'
+  fi
+
   export VafPodRemoteEnv VafUserHost VafConf_PodRms VafConf_PodQueue
   export -f vafctl vafreq vafcount vafwait _vaf_p _vaf_dp
 
