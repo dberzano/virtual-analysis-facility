@@ -514,15 +514,14 @@ function Main() {
 
   # Enter shell
   if [ "$VafUserHost" != '' ] ; then
-    _vaf_p "Entering VAF environment: $VafUserHost"
+    _vaf_p "Entering VAF environment: $VafUserHost."
+    _vaf_p 'To exit the VAF environment just type "exit".'
   else
-    _vaf_p 'Entering VAF environment'
+    _vaf_p 'Entering VAF environment: to exit just type "exit".'
   fi
 
-  _vaf_p 'To exit the VAF environment, just type "exit".'
-
   if [ "$SSH_CLIENT" == '' ] ; then
-    _vaf_p 'Remember: you are still in a shell on your local computer!'
+    _vaf_p 'Remember: you are still inside a shell on your local computer!'
   else
     _vaf_p 'Please note that you are *not* on your computer!'
     _vaf_p 'You are connected to a remote machine via SSH!'
