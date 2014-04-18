@@ -503,11 +503,13 @@ function Main() {
   # Set some defaults
   [ "$VafConf_PodRms" == '' ] && VafConf_PodRms='condor'
 
-  # Grid key configuration
-  _vaf_privkey_setup "$VafUser" "$VafHost" "$VafPort"
-  if [ $? != 0 ] && [ "$VafUserHost" != '' ] ; then
-    # Fatal if running pod-remote
-    return $ErrKey
+  # Grid key configuration: only if connecting to a remote host
+  if [ "$VafUserHost" != '' ] ; then
+    _vaf_privkey_setup "$VafUser" "$VafHost" "$VafPort"
+    if [ $? != 0 ] && [ "$VafUserHost" != '' ] ; then
+      # Fatal if running pod-remote
+      return $ErrKey
+    fi
   fi
 
   # Enter shell
