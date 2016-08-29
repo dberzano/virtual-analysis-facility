@@ -12,3 +12,6 @@
 # The urltemplate: part in the AliEn dataset definition
 # Example: xpd.datasetsrc alien cache:/tmp/ali-ds-cache urltemplate:$VafDataSetStorage cacheexpiresecs:3600
 export VafDataSetStorage="ALICE::Torino::SE"
+
+# This is what is used at CERN CAF: read data straight from AliEn
+#export VafDataSetStorage="alien://<path>"

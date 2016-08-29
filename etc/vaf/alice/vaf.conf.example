@@ -1,13 +1,6 @@
 # AliEn username
 export alien_API_USER=$USER
 
-# AliRoot Core or AliPhysics version: dependencies will be automatically set.
-# Choose AliRoot Core or AliPhysics. If you choose AliRoot Core, AliPhysics
-# will not be available. If you choose AliPhysics, do not set AliRoot Core, as
-# the correct dependency will be automatically selected.
+# Set only AliPhysics. Other dependencies are automatically set.
 # See available versions at: http://alimonitor.cern.ch/packages/
-export VafAliPhysicsVersion="vAN-20150129"
-#export VafAliRootVersion="v5-06-02"
-
-# Desired FastJet version: CGAL dependency automatically set
-#export VafFastJetVersion="v2.4.2"
+export VafAliPhysicsVersion="vAN-20160823-1"
